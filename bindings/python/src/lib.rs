@@ -149,7 +149,7 @@ fn chi_eff<'py>(
     tilt1: PyReadonlyArray1<'py, f64>,
     tilt2: PyReadonlyArray1<'py, f64>,
 ) -> PyResult<Bound<'py, PyArray1<f64>>> {
-    let n = m1.len();
+    let n = m1.len()?;
     let m1 = array_to_masses(&m1);
     let m2 = array_to_masses(&m2);
     let a1 = a1.as_array();
@@ -174,7 +174,7 @@ fn chi_p<'py>(
     tilt1: PyReadonlyArray1<'py, f64>,
     tilt2: PyReadonlyArray1<'py, f64>,
 ) -> PyResult<Bound<'py, PyArray1<f64>>> {
-    let n = m1.len();
+    let n = m1.len()?;
     let m1 = array_to_masses(&m1);
     let m2 = array_to_masses(&m2);
     let a1 = a1.as_array();
