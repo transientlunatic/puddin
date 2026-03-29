@@ -1,0 +1,15 @@
+[package]
+name = "puddin-python"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lib]
+name = "puddin"
+crate-type = ["cdylib"]
+
+[dependencies]
+puddin = { workspace = true }
+pyo3 = { workspace = true }
+numpy = { workspace = true }

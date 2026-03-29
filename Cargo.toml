@@ -1,0 +1,20 @@
+[workspace]
+members = [
+    "crates/puddin",
+    "bindings/python",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = []
+license = "MIT OR Apache-2.0"
+repository = ""
+
+[workspace.dependencies]
+puddin = { path = "crates/puddin" }
+uom = { version = "0.36", features = ["f64", "si"] }
+proptest = "1"
+pyo3 = { version = "0.23", features = ["extension-module"] }
+numpy = "0.23"

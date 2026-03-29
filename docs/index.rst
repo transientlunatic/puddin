@@ -1,0 +1,14 @@
+Puddin
+======
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Theory
+
+   theory/binary_parameters
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Rust API
+
+   api/crates/puddin/index

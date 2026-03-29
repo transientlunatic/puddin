@@ -1,0 +1,14 @@
+[package]
+name = "puddin"
+description = "Mathematical and physical primitives for gravitational-wave astronomy"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+uom = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
