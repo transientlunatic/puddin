@@ -201,6 +201,10 @@ fn main() {
             print_scalar(r, "chi_p", "", verbose);
         }
         Command::MassesFromMcQ { mc, q } => {
+            if q <= 0.0 || q > 1.0 {
+                eprintln!("error: q must be in (0, 1], got {q}");
+                std::process::exit(1);
+            }
             let (r1, r2) = masses_from_chirp_mass_q(mass(mc, si), q);
             print_pair(
                 from_kg(r1.get::<kilogram>(), si),
@@ -210,6 +214,10 @@ fn main() {
             );
         }
         Command::MassesFromMcEta { mc, eta } => {
+            if eta <= 0.0 || eta > 0.25 {
+                eprintln!("error: eta must be in (0, 0.25], got {eta}");
+                std::process::exit(1);
+            }
             let (r1, r2) = masses_from_chirp_mass_eta(mass(mc, si), eta);
             print_pair(
                 from_kg(r1.get::<kilogram>(), si),

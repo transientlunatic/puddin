@@ -35,7 +35,7 @@ export MSUN,
 # For a registered Julia package the library should instead be supplied by a
 # companion JLL package created with BinaryBuilder.jl.
 
-const _REPO_ROOT = joinpath(@__DIR__, "..", "..", "..", "..")
+const _REPO_ROOT = joinpath(@__DIR__, "..", "..", "..")
 const _LIB = joinpath(_REPO_ROOT, "target", "release", "libpuddin_julia")
 
 # ── constants ─────────────────────────────────────────────────────────────────

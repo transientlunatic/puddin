@@ -3,4 +3,3 @@ sphinx-rust
 furo
 myst-parser[linkify]
 sphinxcontrib-katex
-sphinx-kentigern

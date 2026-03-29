@@ -16,6 +16,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
+# All layers that must be declared for every function entry.
+# A missing key in api.toml is treated as a failure, not a silent skip.
+REQUIRED_LAYERS = ("cli", "python", "julia", "r", "wasm")
+
 
 def read(rel: str) -> str:
     return (ROOT / rel).read_text(encoding="utf-8")
@@ -62,6 +66,14 @@ def main() -> int:
                    "bindings/julia/include/puddin.h",
                    f"{sym}(")
 
+        # ── Require all binding-layer keys to be declared ────────────────────
+        for layer in REQUIRED_LAYERS:
+            if layer not in fn:
+                failures.append(
+                    f"  MISSING KEY  [{layer}]  '{name}'  in  api.toml "
+                    f"(add the key or mark it skip_layers = [\"{layer}\"])"
+                )
+
         # ── CLI ──────────────────────────────────────────────────────────────
         if "cli" in fn:
             ensure(failures, "cli",
@@ -80,7 +92,7 @@ def main() -> int:
                    "bindings/julia/src/Puddin.jl",
                    f"function {fn['julia']}(")
 
-        # ── R (source + NAMESPACE) ───────────────────────────────────────────
+        # ── R (R source + NAMESPACE + native C shim) ─────────────────────────
         if "r" in fn:
             ensure(failures, "r_source",
                    "bindings/r/R/puddin.R",
@@ -88,12 +100,22 @@ def main() -> int:
             ensure(failures, "r_namespace",
                    "bindings/r/NAMESPACE",
                    fn["r"])
+            # Verify the native C shim that adapts the C ABI to R's .C() convention
+            for sym in as_list(fn.get("c_abi", [])):
+                r_sym = sym.replace("puddin_", "r_puddin_")
+                ensure(failures, "r_c_shim",
+                       "bindings/r/src/puddin_r.c",
+                       f"{r_sym}(")
 
-        # ── WASM TypeScript wrapper ──────────────────────────────────────────
+        # ── WASM (TypeScript wrapper + Rust wasm_bindgen export) ────────────
         if "wasm" in fn:
-            ensure(failures, "wasm",
+            ensure(failures, "wasm_ts",
                    "bindings/wasm/js/puddin.ts",
                    fn["wasm"])
+            # Verify the underlying wasm_bindgen Rust source calls the core function
+            ensure(failures, "wasm_rust",
+                   "bindings/wasm/src/lib.rs",
+                   f"binary::{name}")
 
     print()
     if failures:

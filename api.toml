@@ -1,10 +1,13 @@
 # api.toml — Canonical registry of all public Puddin functions.
 #
 # Used by scripts/check_api_coverage.py (run in CI as the "api-coverage" job)
-# to verify that every public Rust function is wired up in every binding layer.
+# to verify that every function listed below is wired up in every binding layer.
 #
-# Update this file whenever you add, rename, or remove a function in
-# crates/puddin/src/binary.rs.  The CI job will fail on any mismatch.
+# Update this file whenever you add, rename, or remove a public function in
+# crates/puddin/src/binary.rs.  The CI job will fail if any function declared
+# here is missing from, or misnamed in, one of the binding layers; it does not
+# currently detect additional public functions in binary.rs that are not
+# registered in this file.
 #
 # Fields
 #   rust_name  public fn name in crates/puddin/src/binary.rs
