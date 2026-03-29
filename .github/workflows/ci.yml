@@ -12,6 +12,19 @@ env:
 
 jobs:
 
+  # ── API coverage: every Rust function wired up in every binding layer ────────
+
+  api-coverage:
+    name: API coverage check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check all binding layers expose every public function
+        run: python3 scripts/check_api_coverage.py
+
   # ── Rust formatting & linting ───────────────────────────────────────────────
 
   rust-checks:

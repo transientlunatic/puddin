@@ -81,6 +81,70 @@ pub fn chirp_mass(m1: Vec<f64>, m2: Vec<f64>) -> Vec<f64> {
         .collect()
 }
 
+/// Component masses $(m_1, m_2)$ from chirp mass $\mathcal{M}$ and mass ratio $q$.
+///
+/// @param mc - Chirp mass in kilograms.
+/// @param q  - Mass ratio q = m₂/m₁ ∈ (0, 1].
+/// @returns Component mass m₁ in kilograms (same length as input).
+#[wasm_bindgen]
+pub fn masses_from_chirp_mass_q_m1(mc: Vec<f64>, q: Vec<f64>) -> Vec<f64> {
+    to_masses(&mc)
+        .into_iter()
+        .zip(q.iter())
+        .map(|(mc_val, &q_val)| {
+            binary::masses_from_chirp_mass_q(mc_val, q_val).0.get::<kilogram>()
+        })
+        .collect()
+}
+
+/// Component masses $(m_1, m_2)$ from chirp mass $\mathcal{M}$ and mass ratio $q$.
+///
+/// @param mc - Chirp mass in kilograms.
+/// @param q  - Mass ratio q = m₂/m₁ ∈ (0, 1].
+/// @returns Component mass m₂ in kilograms (same length as input).
+#[wasm_bindgen]
+pub fn masses_from_chirp_mass_q_m2(mc: Vec<f64>, q: Vec<f64>) -> Vec<f64> {
+    to_masses(&mc)
+        .into_iter()
+        .zip(q.iter())
+        .map(|(mc_val, &q_val)| {
+            binary::masses_from_chirp_mass_q(mc_val, q_val).1.get::<kilogram>()
+        })
+        .collect()
+}
+
+/// Component masses $(m_1, m_2)$ from chirp mass $\mathcal{M}$ and symmetric mass ratio $\eta$.
+///
+/// @param mc  - Chirp mass in kilograms.
+/// @param eta - Symmetric mass ratio η = m₁m₂/M² ∈ (0, 0.25].
+/// @returns Component mass m₁ in kilograms (same length as input).
+#[wasm_bindgen]
+pub fn masses_from_chirp_mass_eta_m1(mc: Vec<f64>, eta: Vec<f64>) -> Vec<f64> {
+    to_masses(&mc)
+        .into_iter()
+        .zip(eta.iter())
+        .map(|(mc_val, &eta_val)| {
+            binary::masses_from_chirp_mass_eta(mc_val, eta_val).0.get::<kilogram>()
+        })
+        .collect()
+}
+
+/// Component masses $(m_1, m_2)$ from chirp mass $\mathcal{M}$ and symmetric mass ratio $\eta$.
+///
+/// @param mc  - Chirp mass in kilograms.
+/// @param eta - Symmetric mass ratio η = m₁m₂/M² ∈ (0, 0.25].
+/// @returns Component mass m₂ in kilograms (same length as input).
+#[wasm_bindgen]
+pub fn masses_from_chirp_mass_eta_m2(mc: Vec<f64>, eta: Vec<f64>) -> Vec<f64> {
+    to_masses(&mc)
+        .into_iter()
+        .zip(eta.iter())
+        .map(|(mc_val, &eta_val)| {
+            binary::masses_from_chirp_mass_eta(mc_val, eta_val).1.get::<kilogram>()
+        })
+        .collect()
+}
+
 /// Effective inspiral spin $\chi_\mathrm{eff} \in [-1, 1]$.
 ///
 /// @param m1    - Component mass 1 in kilograms.
