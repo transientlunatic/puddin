@@ -6,6 +6,7 @@ Puddin
    :caption: Getting started
 
    interfaces
+   contributing
 
 .. toctree::
    :maxdepth: 1

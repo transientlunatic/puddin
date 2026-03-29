@@ -7,6 +7,61 @@ for the Python interface.
 
 ---
 
+## Command line
+
+Install the `puddin` CLI with Cargo:
+
+```bash
+cargo install --git https://github.com/transientlunatic/puddin puddin-cli
+# or, from a local checkout:
+cargo install --path crates/puddin-cli
+```
+
+Pre-built binaries for Linux, macOS, and Windows are attached to each
+[GitHub Release](https://github.com/transientlunatic/puddin/releases).
+
+### Usage
+
+Masses default to solar masses (M☉); use `--si` to switch to kilograms.
+Output is a bare number on stdout — suitable for shell pipelines.
+Add `--verbose` (`-v`) for a labelled result with units.
+
+```bash
+# Chirp mass of a 30+30 Msun binary
+puddin chirp-mass 30 30
+# → 26.116516898883617
+
+puddin chirp-mass 30 30 --verbose
+# → chirp_mass = 26.116516898883617 Msun
+
+# Spin parameters
+puddin chi-eff 30 30 0.5 0.5 0.0 0.0    # both aligned at 0.5 → 0.5
+puddin chi-p   30 15 0.8 0.3 0.4 1.2
+
+# Masses in kilograms
+puddin --si chirp-mass 5.97e30 5.97e30
+
+# Compose with standard Unix tools
+MC=$(puddin chirp-mass 30 30)
+echo "Mc = $MC Msun"
+```
+
+### Subcommands
+
+| Subcommand       | Aliases       | Arguments              | Output      |
+|------------------|---------------|------------------------|-------------|
+| `total-mass`     | `m`           | `m1 m2`                | M (Msun/kg) |
+| `mass-ratio`     | `q`           | `m1 m2`                | q           |
+| `sym-mass-ratio` | `eta`         | `m1 m2`                | η           |
+| `chirp-mass`     | `mc`          | `m1 m2`                | ℳ (Msun/kg) |
+| `chi-eff`        | `chieff`      | `m1 m2 a1 a2 t1 t2`   | χ_eff       |
+| `chi-p`          | `chip`        | `m1 m2 a1 a2 t1 t2`   | χ_p         |
+
+`t1`, `t2` are tilt angles in radians.  `a1`, `a2` are dimensionless spin
+magnitudes in [0, 1].  Both spin subcommands require `m1 ≥ m2`.
+
+---
+
 ## Python
 
 Install from PyPI:

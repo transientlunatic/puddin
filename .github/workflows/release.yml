@@ -246,3 +246,57 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ matrix.archive }}
+
+  # ── Build & upload puddin CLI binary ────────────────────────────────────────
+  #
+  # Produces a platform-specific archive containing the `puddin` binary.
+  # Users can extract it and place it on their PATH — no Rust toolchain needed.
+
+  build-cli:
+    name: CLI binary — ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write        # required to upload assets to the GitHub Release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            bin: puddin
+            archive: puddin-cli-linux-x86_64.tar.gz
+          - os: macos-latest
+            bin: puddin
+            archive: puddin-cli-macos-arm64.tar.gz
+          - os: windows-latest
+            bin: puddin.exe
+            archive: puddin-cli-windows-x86_64.zip
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build CLI
+        run: cargo build --release -p puddin-cli
+
+      - name: Stage & archive (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          mkdir dist
+          cp target/release/${{ matrix.bin }} dist/
+          tar czf ${{ matrix.archive }} -C dist .
+
+      - name: Stage & archive (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Name dist | Out-Null
+          Copy-Item target\release\${{ matrix.bin }} dist\
+          Compress-Archive -Path dist\* -DestinationPath ${{ matrix.archive }}
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.archive }}
