@@ -1,7 +1,7 @@
 use clap::{ArgAction, Parser, Subcommand};
 use puddin::binary::{
-    chi_eff, chi_p, chirp_mass, mass_ratio, masses_from_chirp_mass_eta,
-    masses_from_chirp_mass_q, symmetric_mass_ratio, total_mass,
+    chi_eff, chi_p, chirp_mass, mass_ratio, masses_from_chirp_mass_eta, masses_from_chirp_mass_q,
+    symmetric_mass_ratio, total_mass,
 };
 use uom::si::f64::Mass;
 use uom::si::mass::kilogram;
@@ -129,11 +129,19 @@ enum Command {
 }
 
 fn to_kg(val: f64, si: bool) -> f64 {
-    if si { val } else { val * MSUN }
+    if si {
+        val
+    } else {
+        val * MSUN
+    }
 }
 
 fn from_kg(val: f64, si: bool) -> f64 {
-    if si { val } else { val / MSUN }
+    if si {
+        val
+    } else {
+        val / MSUN
+    }
 }
 
 fn mass(val: f64, si: bool) -> Mass {
@@ -178,7 +186,12 @@ fn main() {
     match cli.command {
         Command::TotalMass { m1, m2 } => {
             let r = total_mass(mass(m1, si), mass(m2, si));
-            print_scalar(from_kg(r.get::<kilogram>(), si), "total_mass", mass_unit, verbose);
+            print_scalar(
+                from_kg(r.get::<kilogram>(), si),
+                "total_mass",
+                mass_unit,
+                verbose,
+            );
         }
         Command::MassRatio { m1, m2 } => {
             let r = mass_ratio(mass(m1, si), mass(m2, si));
@@ -190,13 +203,32 @@ fn main() {
         }
         Command::ChirpMass { m1, m2 } => {
             let r = chirp_mass(mass(m1, si), mass(m2, si));
-            print_scalar(from_kg(r.get::<kilogram>(), si), "chirp_mass", mass_unit, verbose);
+            print_scalar(
+                from_kg(r.get::<kilogram>(), si),
+                "chirp_mass",
+                mass_unit,
+                verbose,
+            );
         }
-        Command::ChiEff { m1, m2, a1, a2, tilt1, tilt2 } => {
+        Command::ChiEff {
+            m1,
+            m2,
+            a1,
+            a2,
+            tilt1,
+            tilt2,
+        } => {
             let r = chi_eff(mass(m1, si), mass(m2, si), a1, a2, tilt1, tilt2);
             print_scalar(r, "chi_eff", "", verbose);
         }
-        Command::ChiP { m1, m2, a1, a2, tilt1, tilt2 } => {
+        Command::ChiP {
+            m1,
+            m2,
+            a1,
+            a2,
+            tilt1,
+            tilt2,
+        } => {
             let r = chi_p(mass(m1, si), mass(m2, si), a1, a2, tilt1, tilt2);
             print_scalar(r, "chi_p", "", verbose);
         }

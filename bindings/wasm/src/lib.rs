@@ -92,7 +92,9 @@ pub fn masses_from_chirp_mass_q_m1(mc: Vec<f64>, q: Vec<f64>) -> Vec<f64> {
         .into_iter()
         .zip(q.iter())
         .map(|(mc_val, &q_val)| {
-            binary::masses_from_chirp_mass_q(mc_val, q_val).0.get::<kilogram>()
+            binary::masses_from_chirp_mass_q(mc_val, q_val)
+                .0
+                .get::<kilogram>()
         })
         .collect()
 }
@@ -108,7 +110,9 @@ pub fn masses_from_chirp_mass_q_m2(mc: Vec<f64>, q: Vec<f64>) -> Vec<f64> {
         .into_iter()
         .zip(q.iter())
         .map(|(mc_val, &q_val)| {
-            binary::masses_from_chirp_mass_q(mc_val, q_val).1.get::<kilogram>()
+            binary::masses_from_chirp_mass_q(mc_val, q_val)
+                .1
+                .get::<kilogram>()
         })
         .collect()
 }
@@ -124,7 +128,9 @@ pub fn masses_from_chirp_mass_eta_m1(mc: Vec<f64>, eta: Vec<f64>) -> Vec<f64> {
         .into_iter()
         .zip(eta.iter())
         .map(|(mc_val, &eta_val)| {
-            binary::masses_from_chirp_mass_eta(mc_val, eta_val).0.get::<kilogram>()
+            binary::masses_from_chirp_mass_eta(mc_val, eta_val)
+                .0
+                .get::<kilogram>()
         })
         .collect()
 }
@@ -140,7 +146,9 @@ pub fn masses_from_chirp_mass_eta_m2(mc: Vec<f64>, eta: Vec<f64>) -> Vec<f64> {
         .into_iter()
         .zip(eta.iter())
         .map(|(mc_val, &eta_val)| {
-            binary::masses_from_chirp_mass_eta(mc_val, eta_val).1.get::<kilogram>()
+            binary::masses_from_chirp_mass_eta(mc_val, eta_val)
+                .1
+                .get::<kilogram>()
         })
         .collect()
 }

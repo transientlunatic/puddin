@@ -147,7 +147,10 @@ pub fn chirp_mass(m1: Mass, m2: Mass) -> Mass {
 /// assert!((m2_out.get::<kilogram>() - m2_in.get::<kilogram>()).abs() / m2_in.get::<kilogram>() < 1e-10);
 /// ```
 pub fn masses_from_chirp_mass_q(mc: Mass, q: f64) -> (Mass, Mass) {
-    debug_assert!(q > 0.0 && q <= 1.0, "mass ratio q must be in (0, 1], got q={q}");
+    debug_assert!(
+        q > 0.0 && q <= 1.0,
+        "mass ratio q must be in (0, 1], got q={q}"
+    );
     let eta = q / (1.0 + q).powi(2);
     let m_kg = mc.get::<kilogram>() / eta.powf(3.0 / 5.0);
     let m1_kg = m_kg / (1.0 + q);
