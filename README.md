@@ -25,7 +25,7 @@ Language interfaces
 | Rust           | ✅ stable   | core crate `puddin` |
 | Python         | ✅ stable   | `pip install puddin`; numpy, astropy, pint, JAX all supported |
 | JavaScript/TypeScript | ✅ stable | `npm install puddin-wasm`; vectorised `Float64Array` API + scalar helpers |
-| Julia          | 🔜 planned  | `ccall` into the Rust shared library |
+| Julia          | ✅ stable   | `ccall` into `libpuddin_julia`; broadcasting works natively |
 
 Installation
 ------------
@@ -67,6 +67,23 @@ const mc = chirp_mass_scalar(30 * MSUN, 30 * MSUN);   // kg
 const m1 = new Float64Array([30 * MSUN, 10 * MSUN]);
 const m2 = new Float64Array([30 * MSUN,  5 * MSUN]);
 const mc_arr = chirp_mass(m1, m2);
+```
+
+### Julia
+
+```bash
+# Build the shared library
+cargo build --release -p puddin-julia
+```
+
+```julia
+import Pkg
+Pkg.develop(path="bindings/julia")
+
+using Puddin
+
+mc = chirp_mass(30.0 * MSUN, 30.0 * MSUN)  # scalar
+mc = chirp_mass.(m1_array, m2_array)         # vectorised via broadcasting
 ```
 
 ### Rust

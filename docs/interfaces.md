@@ -138,6 +138,71 @@ const xe = chi_eff_scalar(
 
 ---
 
+## Julia
+
+The Julia interface uses [`ccall`](https://docs.julialang.org/en/v1/base/c/#ccall)
+to call into a Rust shared library (`libpuddin_julia.so` / `.dylib` / `.dll`).
+The C API is **scalar only** — Julia's native broadcasting handles arrays
+idiomatically without any extra wrapping.
+
+> **Note on distribution:** The recommended approach for a registered Julia
+> package with binary dependencies is a companion JLL package created with
+> [BinaryBuilder.jl](https://binarybuilder.org/).  The instructions below
+> describe the development workflow from source.
+
+### Build the shared library
+
+```bash
+cargo build --release -p puddin-julia
+# → target/release/libpuddin_julia.{so,dylib,dll}
+```
+
+### Add the package
+
+From the Julia REPL, with the monorepo checked out:
+
+```julia
+import Pkg
+Pkg.develop(path="bindings/julia")
+```
+
+### Usage
+
+```julia
+using Puddin
+
+const MSUN = Puddin.MSUN   # 1.988_416e30 kg
+
+# Scalar
+mc = chirp_mass(30.0 * MSUN, 30.0 * MSUN)   # ≈ 26.1 M☉ in kg
+
+# Vectorised via Julia broadcasting — no extra work needed
+m1 = rand(1000) .* 50.0 .* MSUN
+m2 = rand(1000) .* 50.0 .* MSUN
+
+mc_arr  = chirp_mass.(m1, m2)
+eta_arr = symmetric_mass_ratio.(m1, m2)
+
+xe_arr  = chi_eff.(m1, m2,
+                   fill(0.5, 1000), fill(0.3, 1000),
+                   fill(0.2, 1000), fill(1.1, 1000))
+```
+
+### Available functions
+
+| Function | Description |
+|---|---|
+| `total_mass(m1, m2)` | $M = m_1 + m_2$ |
+| `mass_ratio(m1, m2)` | $q = m_2/m_1$ |
+| `symmetric_mass_ratio(m1, m2)` | $\eta = m_1 m_2/M^2$ |
+| `chirp_mass(m1, m2)` | $\mathcal{M} = (m_1 m_2)^{3/5}/M^{1/5}$ |
+| `chi_eff(m1, m2, a1, a2, tilt1, tilt2)` | Effective inspiral spin |
+| `chi_p(m1, m2, a1, a2, tilt1, tilt2)` | Effective precession spin ($m_1 \geq m_2$) |
+
+All masses in kg, all angles in radians
+
+---
+
 ## Rust
 
 Add to `Cargo.toml`:

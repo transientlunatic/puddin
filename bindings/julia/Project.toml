@@ -1,0 +1,6 @@
+name = "Puddin"
+uuid = "7cbdf867-e8c0-4ef3-857f-34cb561822b4"
+version = "0.1.0"
+
+[compat]
+julia = "1.9"

@@ -1,11 +1,10 @@
 [workspace]
 members = [
     "crates/puddin",
-    # bindings/wasm can be a workspace member: wasm-bindgen has no special
-    # linking requirements like pyo3's libpython, so `cargo check --workspace`
-    # works on a native host.  wasm-pack supplies the wasm32 target for the
-    # actual binary build.
+    # bindings/wasm and bindings/julia are standard cdylib crates that can be
+    # checked on a native host without special toolchains.
     "bindings/wasm",
+    "bindings/julia",
     # bindings/python is intentionally excluded from the default workspace.
     # It is built exclusively through maturin, which injects the required
     # pyo3/extension-module feature.  Including it here would cause
@@ -28,9 +27,12 @@ proptest = "1"
 pyo3 = { version = "0.23", features = ["extension-module"] }
 numpy = "0.23"
 
-# Optimise WASM release builds aggressively for binary size (the .wasm file
-# is downloaded by end-users).  lto + opt-level="z" shaves ~40 % off the
-# default release size.
+# lto = true is beneficial for all targets (better codegen, slightly slower CI).
+# opt-level = "z" is overridden per-package for WASM below.
 [profile.release]
-opt-level = "z"
 lto = true
+
+# Shrink the WASM binary: it is downloaded by end-users so size matters.
+# This is intentionally more aggressive than the workspace default above.
+[profile.release.package.puddin-wasm]
+opt-level = "z"

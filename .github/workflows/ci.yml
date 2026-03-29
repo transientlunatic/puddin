@@ -151,3 +151,26 @@ jobs:
         with:
           name: wasm-pkg
           path: bindings/wasm/pkg/
+
+  # ── Julia build & test ──────────────────────────────────────────────────────
+
+  julia-tests:
+    name: Julia — build & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build Rust shared library
+        run: cargo build --release -p puddin-julia
+
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: "1.10"
+
+      - name: Run Julia tests
+        working-directory: bindings/julia
+        run: julia --project=. test/runtests.jl

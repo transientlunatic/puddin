@@ -252,6 +252,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "puddin-julia"
+version = "0.1.0"
+dependencies = [
+ "puddin",
+ "uom",
+]
+
+[[package]]
 name = "puddin-wasm"
 version = "0.1.0"
 dependencies = [

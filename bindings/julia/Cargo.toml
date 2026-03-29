@@ -1,0 +1,14 @@
+[package]
+name = "puddin-julia"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lib]
+# cdylib produces libpuddin_julia.so / .dylib / .dll
+crate-type = ["cdylib"]
+
+[dependencies]
+puddin = { workspace = true }
+uom = { workspace = true }
