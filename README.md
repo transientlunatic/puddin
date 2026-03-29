@@ -26,6 +26,11 @@ Language interfaces
 | Python         | ✅ stable   | `pip install puddin`; numpy, astropy, pint, JAX all supported |
 | JavaScript/TypeScript | ✅ stable | `npm install puddin-wasm`; vectorised `Float64Array` API + scalar helpers |
 | Julia          | ✅ stable   | `ccall` into `libpuddin_julia`; broadcasting works natively |
+| C / C++        | ✅ stable   | link `libpuddin_julia`, include `bindings/julia/include/puddin.h` |
+| Fortran        | ✅ stable   | `iso_c_binding` + `bind(C)` — no shim needed |
+| Go             | ✅ stable   | `cgo` with `#cgo LDFLAGS` pointing at `libpuddin_julia` |
+| R              | ✅ stable   | `R CMD INSTALL bindings/r`; vectorised, testthat suite |
+| MATLAB         | ✅ stable   | `loadlibrary` / `calllib` using the C header; no compilation needed |
 
 Installation
 ------------

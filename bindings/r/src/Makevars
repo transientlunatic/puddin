@@ -1,0 +1,29 @@
+# src/Makevars
+#
+# Build configuration for the Puddin R package.
+#
+# The package links against libpuddin_julia — the cdylib built by the
+# bindings/julia Rust crate.  Build it first:
+#
+#   cargo build --release -p puddin-julia
+#
+# Then install the R package from the monorepo root:
+#
+#   R CMD INSTALL bindings/r
+#
+# To override the library location (e.g. after `cargo install` or when the
+# monorepo is not at the expected relative path), set PUDDIN_LIB:
+#
+#   PUDDIN_LIB=/opt/puddin/lib R CMD INSTALL bindings/r
+
+ifdef PUDDIN_LIB
+  _PUDDIN_LIB := $(PUDDIN_LIB)
+else
+  # Default: monorepo layout — src/ is three levels below the repo root.
+  _PUDDIN_LIB := $(abspath ../../../target/release)
+endif
+
+_PUDDIN_INCLUDE := $(abspath ../../../bindings/julia/include)
+
+PKG_CPPFLAGS = -I$(_PUDDIN_INCLUDE)
+PKG_LIBS     = -L$(_PUDDIN_LIB) -lpuddin_julia -Wl,-rpath,$(_PUDDIN_LIB)

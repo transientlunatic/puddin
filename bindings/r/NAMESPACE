@@ -1,0 +1,10 @@
+useDynLib(Puddin, .registration = TRUE)
+export(
+  MSUN,
+  total_mass,
+  mass_ratio,
+  symmetric_mass_ratio,
+  chirp_mass,
+  chi_eff,
+  chi_p
+)

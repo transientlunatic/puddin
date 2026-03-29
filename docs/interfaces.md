@@ -230,3 +230,189 @@ let xe = chi_eff(m, m, 0.5, 0.3, 0.2, 1.1);
 
 Attempting to pass a length where a mass is expected is a **compile error** —
 no runtime checks needed.
+
+---
+
+## C
+
+The `bindings/julia` crate produces a standard C shared library.  Include
+`bindings/julia/include/puddin.h` to get the function declarations and the
+`PUDDIN_MSUN` constant.
+
+```bash
+# Build the library
+cargo build --release -p puddin-julia
+
+# Compile and link your program
+gcc example.c \
+    -I bindings/julia/include \
+    -L target/release -lpuddin_julia \
+    -Wl,-rpath,$(pwd)/target/release \
+    -o example -lm
+```
+
+```c
+#include "puddin.h"
+#include <stdio.h>
+
+int main(void) {
+    double m1 = 30.0 * PUDDIN_MSUN;
+    double m2 = 30.0 * PUDDIN_MSUN;
+    printf("Chirp mass: %.4f Msun\n", puddin_chirp_mass(m1, m2) / PUDDIN_MSUN);
+    return 0;
+}
+```
+
+See [examples/c/example.c](../examples/c/example.c) for a complete example with a `Makefile`.
+
+---
+
+## C++
+
+`puddin.h` includes an `extern "C"` guard, so the header is directly usable
+from C++ without modification.
+
+```bash
+g++ example.cpp \
+    -I bindings/julia/include \
+    -L target/release -lpuddin_julia \
+    -Wl,-rpath,$(pwd)/target/release \
+    -o example
+```
+
+```cpp
+#include "puddin.h"
+#include <iostream>
+
+int main() {
+    constexpr double MSUN = PUDDIN_MSUN;
+    double m1 = 30.0 * MSUN, m2 = 30.0 * MSUN;
+    std::cout << "Chirp mass: " << puddin_chirp_mass(m1, m2) / MSUN << " Msun\n";
+}
+```
+
+See [examples/cpp/example.cpp](../examples/cpp/example.cpp) for the full example.
+
+---
+
+## Fortran
+
+Fortran 2003+ `iso_c_binding` maps directly onto the C ABI.  No shim layer is
+needed — declare the interfaces with `bind(C)` and call them like normal
+Fortran procedures.
+
+```fortran
+use iso_c_binding, only: c_double
+
+interface
+    function puddin_chirp_mass(m1, m2) bind(C, name="puddin_chirp_mass")
+        import c_double
+        real(c_double), value :: m1, m2
+        real(c_double)        :: puddin_chirp_mass
+    end function
+end interface
+
+real(c_double), parameter :: MSUN = 1.988416e30_c_double
+print *, puddin_chirp_mass(30*MSUN, 30*MSUN) / MSUN  ! ~26.1
+```
+
+```bash
+gfortran example.f90 \
+    -L target/release -lpuddin_julia \
+    -Wl,-rpath,$(pwd)/target/release \
+    -o example
+```
+
+See [examples/fortran/example.f90](../examples/fortran/example.f90) for the full example.
+
+---
+
+## Go
+
+Go's `cgo` interface handles the C ABI transparently.  Set the `#cgo`
+directives for include and library paths, then import the header and call
+functions as if they were Go functions prefixed with `C.`.
+
+```go
+// #cgo CFLAGS:  -I../../bindings/julia/include
+// #cgo LDFLAGS: -L../../target/release -lpuddin_julia -Wl,-rpath,../../target/release
+// #include "puddin.h"
+import "C"
+import "fmt"
+
+func main() {
+    m := C.double(30.0 * C.PUDDIN_MSUN)
+    fmt.Printf("Chirp mass: %.4f Msun\n", float64(C.puddin_chirp_mass(m, m)) / float64(C.PUDDIN_MSUN))
+}
+```
+
+```bash
+cd examples/go && go run example.go
+```
+
+See [examples/go/example.go](../examples/go/example.go) for the full example.
+
+---
+
+## R
+
+The R package wraps the C ABI via a thin `.C()`-compatible shim compiled as
+part of the package.  All public functions are vectorised with `Vectorize()`.
+
+### Installation (development, from monorepo)
+
+```bash
+# Build the shared library first
+cargo build --release -p puddin-julia
+
+# Install the R package
+R CMD INSTALL bindings/r
+```
+
+### Usage
+
+```r
+library(Puddin)
+
+# Scalar
+chirp_mass(30 * MSUN, 30 * MSUN) / MSUN   # ~26.1
+
+# Vectorised — works automatically
+m1 <- c(30, 20, 10) * MSUN
+m2 <- c(30, 20,  5) * MSUN
+chirp_mass(m1, m2) / MSUN
+
+# Spin parameters
+chi_eff(30*MSUN, 30*MSUN, 0.5, 0.5, 0, 0)   # 0.5
+```
+
+> **Note on CRAN distribution:** producing a CRAN package with a compiled
+> dependency requires either a companion `r2u` / CRAN binary or distributing
+> pre-built binaries via a system dependency.  The current package is suitable
+> for direct installation from source.
+
+---
+
+## MATLAB
+
+Use MATLAB's `loadlibrary` / `calllib` to load the shared library directly.
+No wrapper code is needed — the C header is loaded at runtime.
+
+```matlab
+loadlibrary('libpuddin_julia', 'bindings/julia/include/puddin.h', 'alias', 'puddin');
+
+MSUN = 1.988416e30;
+mc   = calllib('puddin', 'puddin_chirp_mass', 30*MSUN, 30*MSUN) / MSUN;
+fprintf('Chirp mass: %.4f Msun\n', mc);
+
+unloadlibrary('puddin');
+```
+
+For batch processing, `arrayfun` provides a vectorised wrapper:
+
+```matlab
+masses_sun = 10:10:50;
+mc = arrayfun(@(m) calllib('puddin', 'puddin_chirp_mass', m*MSUN, m*MSUN)/MSUN, masses_sun);
+```
+
+See [examples/matlab/example.m](../examples/matlab/example.m) for the full example.

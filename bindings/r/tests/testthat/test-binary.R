@@ -1,0 +1,43 @@
+test_that("total_mass returns sum of component masses", {
+  expect_equal(total_mass(30 * MSUN, 30 * MSUN), 60 * MSUN, tolerance = 1e-10)
+  expect_equal(total_mass(10 * MSUN,  5 * MSUN), 15 * MSUN, tolerance = 1e-10)
+})
+
+test_that("mass_ratio is m2/m1", {
+  expect_equal(mass_ratio(30 * MSUN, 30 * MSUN), 1.0,  tolerance = 1e-10)
+  expect_equal(mass_ratio(30 * MSUN, 10 * MSUN), 1/3,  tolerance = 1e-10)
+})
+
+test_that("symmetric_mass_ratio is 0.25 for equal masses", {
+  expect_equal(symmetric_mass_ratio(30 * MSUN, 30 * MSUN), 0.25, tolerance = 1e-10)
+  expect_lte(symmetric_mass_ratio(30 * MSUN, 10 * MSUN), 0.25)
+})
+
+test_that("chirp_mass matches analytic formula for equal masses", {
+  m <- 30 * MSUN
+  mc_expected <- 2 * m * 0.25^(3/5)
+  expect_equal(chirp_mass(m, m), mc_expected, tolerance = 1e-10)
+})
+
+test_that("chi_eff is zero for non-spinning binary", {
+  m <- 30 * MSUN
+  expect_equal(chi_eff(m, m, 0, 0, 0, 0), 0, tolerance = 1e-15)
+})
+
+test_that("chi_eff is 0.5 for equal aligned spins a=0.5", {
+  m <- 30 * MSUN
+  expect_equal(chi_eff(m, m, 0.5, 0.5, 0, 0), 0.5, tolerance = 1e-10)
+})
+
+test_that("chi_p is zero for non-spinning binary", {
+  m <- 30 * MSUN
+  expect_equal(chi_p(m, m, 0, 0, 0, 0), 0, tolerance = 1e-15)
+})
+
+test_that("functions are vectorised", {
+  m1 <- c(30, 20, 10) * MSUN
+  m2 <- c(30, 20,  5) * MSUN
+  mc <- chirp_mass(m1, m2)
+  expect_length(mc, 3L)
+  expect_true(all(mc > 0))
+})
