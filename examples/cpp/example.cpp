@@ -35,6 +35,16 @@ int main() {
     std::cout << "Sym. mass ratio : " << puddin_symmetric_mass_ratio(m1, m2) << "\n";
     std::cout << "Chirp mass      : " << puddin_chirp_mass(m1, m2) / MSUN   << " Msun\n";
 
+    // ── Inverse: recover component masses ────────────────────────────────────
+    double mc  = puddin_chirp_mass(m1, m2);
+    double q   = puddin_mass_ratio(m1, m2);
+    double eta = puddin_symmetric_mass_ratio(m1, m2);
+    std::cout << "\n=== Inverse transforms ===\n";
+    std::cout << "m1 from (Mc, q)   : " << puddin_m1_from_mc_q(mc, q)    / MSUN << " Msun\n";
+    std::cout << "m2 from (Mc, q)   : " << puddin_m2_from_mc_q(mc, q)    / MSUN << " Msun\n";
+    std::cout << "m1 from (Mc, eta) : " << puddin_m1_from_mc_eta(mc, eta) / MSUN << " Msun\n";
+    std::cout << "m2 from (Mc, eta) : " << puddin_m2_from_mc_eta(mc, eta) / MSUN << " Msun\n";
+
     // ── Batch processing over a vector of masses ──────────────────────────────
     std::vector<double> masses = {10.0, 20.0, 30.0, 40.0, 50.0};  // Msun
     std::cout << "\n=== Chirp masses for equal-mass binaries ===\n";

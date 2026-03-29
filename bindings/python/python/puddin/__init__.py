@@ -93,6 +93,48 @@ def chirp_mass(m1, m2):
     return _rust.chirp_mass(to_kg(m1), to_kg(m2))
 
 
+def masses_from_chirp_mass_q(mc, q):
+    r"""Component masses $(m_1, m_2)$ from chirp mass $\mathcal{M}$ and mass ratio $q$.
+
+    Parameters
+    ----------
+    mc:
+        Chirp mass.  Accepts plain SI floats/arrays (kg), astropy Quantities,
+        or pint Quantities.
+    q:
+        Mass ratio $q = m_2 / m_1 \in (0, 1]$ (dimensionless).
+
+    Returns
+    -------
+    tuple[numpy.ndarray, numpy.ndarray]
+        ``(m1, m2)`` in kilograms, with $m_1 \geq m_2$.
+    """
+    if _any_jax(mc, q):
+        return _jax.masses_from_chirp_mass_q(mc, q)
+    return _rust.masses_from_chirp_mass_q(to_kg(mc), to_dimensionless(q))
+
+
+def masses_from_chirp_mass_eta(mc, eta):
+    r"""Component masses $(m_1, m_2)$ from chirp mass $\mathcal{M}$ and symmetric mass ratio $\eta$.
+
+    Parameters
+    ----------
+    mc:
+        Chirp mass.  Accepts plain SI floats/arrays (kg), astropy Quantities,
+        or pint Quantities.
+    eta:
+        Symmetric mass ratio $\eta = m_1 m_2 / M^2 \in (0, 1/4]$ (dimensionless).
+
+    Returns
+    -------
+    tuple[numpy.ndarray, numpy.ndarray]
+        ``(m1, m2)`` in kilograms, with $m_1 \geq m_2$.
+    """
+    if _any_jax(mc, eta):
+        return _jax.masses_from_chirp_mass_eta(mc, eta)
+    return _rust.masses_from_chirp_mass_eta(to_kg(mc), to_dimensionless(eta))
+
+
 def chi_eff(m1, m2, a1, a2, tilt1, tilt2):
     r"""Effective inspiral spin $\chi_\mathrm{eff}$.
 
@@ -140,6 +182,8 @@ __all__ = [
     "mass_ratio",
     "symmetric_mass_ratio",
     "chirp_mass",
+    "masses_from_chirp_mass_q",
+    "masses_from_chirp_mass_eta",
     "chi_eff",
     "chi_p",
 ]

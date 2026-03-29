@@ -38,6 +38,16 @@ fprintf('Mass ratio      : %.4f\n',       calllib('puddin', 'puddin_mass_ratio',
 fprintf('Sym. mass ratio : %.4f\n',       calllib('puddin', 'puddin_symmetric_mass_ratio', m1, m2));
 fprintf('Chirp mass      : %.4f Msun\n',  calllib('puddin', 'puddin_chirp_mass', m1, m2) / MSUN);
 
+% Inverse transforms
+mc  = calllib('puddin', 'puddin_chirp_mass',            m1, m2);
+q   = calllib('puddin', 'puddin_mass_ratio',             m1, m2);
+eta = calllib('puddin', 'puddin_symmetric_mass_ratio',   m1, m2);
+fprintf('\n=== Inverse transforms ===\n');
+fprintf('m1 from (Mc, q)   : %.4f Msun\n', calllib('puddin', 'puddin_m1_from_mc_q',   mc, q)   / MSUN);
+fprintf('m2 from (Mc, q)   : %.4f Msun\n', calllib('puddin', 'puddin_m2_from_mc_q',   mc, q)   / MSUN);
+fprintf('m1 from (Mc, eta) : %.4f Msun\n', calllib('puddin', 'puddin_m1_from_mc_eta', mc, eta) / MSUN);
+fprintf('m2 from (Mc, eta) : %.4f Msun\n', calllib('puddin', 'puddin_m2_from_mc_eta', mc, eta) / MSUN);
+
 a1    = 0.3;   a2    = 0.2;
 tilt1 = 0.5236; tilt2 = 1.0472;   % 30 deg, 60 deg in radians
 

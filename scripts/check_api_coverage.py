@@ -82,9 +82,18 @@ def main() -> int:
 
         # ── Python ───────────────────────────────────────────────────────────
         if "python" in fn:
-            ensure(failures, "python",
+            # Rust extension must register the function
+            ensure(failures, "python_ext",
                    "bindings/python/src/lib.rs",
                    f"wrap_pyfunction!({fn['python']}")
+            # Public Python layer must expose it
+            ensure(failures, "python_public",
+                   "bindings/python/python/puddin/__init__.py",
+                   fn["python"])
+            # JAX wrapper must have a matching implementation
+            ensure(failures, "python_jax",
+                   "bindings/python/python/puddin/jax_wrapper.py",
+                   f"def {fn['python']}(")
 
         # ── Julia ────────────────────────────────────────────────────────────
         if "julia" in fn:
