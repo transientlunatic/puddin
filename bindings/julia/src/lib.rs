@@ -52,6 +52,38 @@ pub extern "C" fn puddin_chirp_mass(m1_kg: f64, m2_kg: f64) -> f64 {
     binary::chirp_mass(kg(m1_kg), kg(m2_kg)).get::<kilogram>()
 }
 
+/// Primary mass $m_1$ (kg) recovered from chirp mass and mass ratio $q = m_2/m_1$.
+///
+/// Requires $q \in (0, 1]$.
+#[no_mangle]
+pub extern "C" fn puddin_m1_from_mc_q(mc_kg: f64, q: f64) -> f64 {
+    binary::masses_from_chirp_mass_q(kg(mc_kg), q).0.get::<kilogram>()
+}
+
+/// Secondary mass $m_2$ (kg) recovered from chirp mass and mass ratio $q = m_2/m_1$.
+///
+/// Requires $q \in (0, 1]$.
+#[no_mangle]
+pub extern "C" fn puddin_m2_from_mc_q(mc_kg: f64, q: f64) -> f64 {
+    binary::masses_from_chirp_mass_q(kg(mc_kg), q).1.get::<kilogram>()
+}
+
+/// Primary mass $m_1$ (kg) recovered from chirp mass and symmetric mass ratio $\eta$.
+///
+/// Requires $\eta \in (0, 1/4]$.
+#[no_mangle]
+pub extern "C" fn puddin_m1_from_mc_eta(mc_kg: f64, eta: f64) -> f64 {
+    binary::masses_from_chirp_mass_eta(kg(mc_kg), eta).0.get::<kilogram>()
+}
+
+/// Secondary mass $m_2$ (kg) recovered from chirp mass and symmetric mass ratio $\eta$.
+///
+/// Requires $\eta \in (0, 1/4]$.
+#[no_mangle]
+pub extern "C" fn puddin_m2_from_mc_eta(mc_kg: f64, eta: f64) -> f64 {
+    binary::masses_from_chirp_mass_eta(kg(mc_kg), eta).1.get::<kilogram>()
+}
+
 /// Effective inspiral spin $\chi_\mathrm{eff} \in [-1, 1]$.
 ///
 /// # Arguments

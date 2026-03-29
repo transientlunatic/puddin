@@ -117,6 +117,88 @@ pub fn chirp_mass(m1: Mass, m2: Mass) -> Mass {
     Mass::new::<kilogram>(mc_kg)
 }
 
+// ── Inverse mass transforms ──────────────────────────────────────────────────
+
+/// Recover component masses $(m_1, m_2)$ from chirp mass $\mathcal{M}$ and
+/// mass ratio $q = m_2/m_1$.
+///
+/// This is the inverse of `chirp_mass` + `mass_ratio`.  The returned masses
+/// satisfy $m_1 \geq m_2$ whenever $q \in (0, 1]$.
+///
+/// # Arguments
+///
+/// * `mc` — chirp mass $\mathcal{M}$ (SI kg).
+/// * `q`  — mass ratio $q = m_2/m_1 \in (0, 1]$.
+///
+/// # Examples
+///
+/// ```
+/// use uom::si::f64::Mass;
+/// use uom::si::mass::kilogram;
+/// use puddin::binary::{chirp_mass, mass_ratio, masses_from_chirp_mass_q};
+///
+/// const MSUN: f64 = 1.988_416e30;
+/// let m1_in = Mass::new::<kilogram>(30.0 * MSUN);
+/// let m2_in = Mass::new::<kilogram>(20.0 * MSUN);
+/// let mc = chirp_mass(m1_in, m2_in);
+/// let q  = mass_ratio(m1_in, m2_in);
+/// let (m1_out, m2_out) = masses_from_chirp_mass_q(mc, q);
+/// assert!((m1_out.get::<kilogram>() - m1_in.get::<kilogram>()).abs() / m1_in.get::<kilogram>() < 1e-10);
+/// assert!((m2_out.get::<kilogram>() - m2_in.get::<kilogram>()).abs() / m2_in.get::<kilogram>() < 1e-10);
+/// ```
+pub fn masses_from_chirp_mass_q(mc: Mass, q: f64) -> (Mass, Mass) {
+    debug_assert!(q > 0.0 && q <= 1.0, "mass ratio q must be in (0, 1], got q={q}");
+    let eta = q / (1.0 + q).powi(2);
+    let m_kg = mc.get::<kilogram>() / eta.powf(3.0 / 5.0);
+    let m1_kg = m_kg / (1.0 + q);
+    let m2_kg = m1_kg * q;
+    (Mass::new::<kilogram>(m1_kg), Mass::new::<kilogram>(m2_kg))
+}
+
+/// Recover component masses $(m_1, m_2)$ from chirp mass $\mathcal{M}$ and
+/// symmetric mass ratio $\eta$.
+///
+/// This is the inverse of `chirp_mass` + `symmetric_mass_ratio`.  The
+/// quadratic $x^2 - x + \eta = 0$ gives $m_1/M$ and $m_2/M$; the larger
+/// root is assigned to $m_1$ so that $m_1 \geq m_2$.
+///
+/// For equal-mass systems ($\eta = 1/4$) the two roots coincide and
+/// $m_1 = m_2$.
+///
+/// # Arguments
+///
+/// * `mc`  — chirp mass $\mathcal{M}$ (SI kg).
+/// * `eta` — symmetric mass ratio $\eta \in (0, 1/4]$.
+///
+/// # Examples
+///
+/// ```
+/// use uom::si::f64::Mass;
+/// use uom::si::mass::kilogram;
+/// use puddin::binary::{chirp_mass, symmetric_mass_ratio, masses_from_chirp_mass_eta};
+///
+/// const MSUN: f64 = 1.988_416e30;
+/// let m1_in = Mass::new::<kilogram>(30.0 * MSUN);
+/// let m2_in = Mass::new::<kilogram>(20.0 * MSUN);
+/// let mc  = chirp_mass(m1_in, m2_in);
+/// let eta = symmetric_mass_ratio(m1_in, m2_in);
+/// let (m1_out, m2_out) = masses_from_chirp_mass_eta(mc, eta);
+/// assert!((m1_out.get::<kilogram>() - m1_in.get::<kilogram>()).abs() / m1_in.get::<kilogram>() < 1e-10);
+/// assert!((m2_out.get::<kilogram>() - m2_in.get::<kilogram>()).abs() / m2_in.get::<kilogram>() < 1e-10);
+/// ```
+pub fn masses_from_chirp_mass_eta(mc: Mass, eta: f64) -> (Mass, Mass) {
+    debug_assert!(
+        eta > 0.0 && eta <= 0.25 + 1e-12,
+        "symmetric mass ratio eta must be in (0, 0.25], got eta={eta}"
+    );
+    let eta = eta.min(0.25); // clamp floating-point noise at equal mass
+    let m_kg = mc.get::<kilogram>() / eta.powf(3.0 / 5.0);
+    let disc = (1.0 - 4.0 * eta).max(0.0).sqrt();
+    let m1_kg = m_kg * (1.0 + disc) / 2.0;
+    let m2_kg = m_kg * (1.0 - disc) / 2.0;
+    (Mass::new::<kilogram>(m1_kg), Mass::new::<kilogram>(m2_kg))
+}
+
 // ── Effective inspiral spin ──────────────────────────────────────────────────
 
 /// Effective inspiral spin parameter
@@ -339,6 +421,63 @@ mod tests {
         assert!(x.abs() < 1e-10);
     }
 
+    // ── masses_from_chirp_mass_q ──────────────────────────────────────────────
+
+    #[test]
+    fn masses_from_mc_q_roundtrip_equal() {
+        let m1 = solar(30.0);
+        let m2 = solar(30.0);
+        let (r1, r2) = masses_from_chirp_mass_q(chirp_mass(m1, m2), mass_ratio(m1, m2));
+        assert!((r1.get::<kilogram>() - m1.get::<kilogram>()).abs() / m1.get::<kilogram>() < 1e-10);
+        assert!((r2.get::<kilogram>() - m2.get::<kilogram>()).abs() / m2.get::<kilogram>() < 1e-10);
+    }
+
+    #[test]
+    fn masses_from_mc_q_roundtrip_asymmetric() {
+        let m1 = solar(36.0);
+        let m2 = solar(12.0);
+        let (r1, r2) = masses_from_chirp_mass_q(chirp_mass(m1, m2), mass_ratio(m1, m2));
+        assert!((r1.get::<kilogram>() - m1.get::<kilogram>()).abs() / m1.get::<kilogram>() < 1e-10);
+        assert!((r2.get::<kilogram>() - m2.get::<kilogram>()).abs() / m2.get::<kilogram>() < 1e-10);
+    }
+
+    #[test]
+    fn masses_from_mc_q_ordering() {
+        // m1 >= m2 must hold for any q in (0, 1]
+        let (m1, m2) = masses_from_chirp_mass_q(solar(26.0), 0.3);
+        assert!(m1.get::<kilogram>() >= m2.get::<kilogram>());
+    }
+
+    // ── masses_from_chirp_mass_eta ────────────────────────────────────────────
+
+    #[test]
+    fn masses_from_mc_eta_roundtrip_equal() {
+        let m1 = solar(30.0);
+        let m2 = solar(30.0);
+        let mc = chirp_mass(m1, m2);
+        let eta = symmetric_mass_ratio(m1, m2);
+        let (r1, r2) = masses_from_chirp_mass_eta(mc, eta);
+        assert!((r1.get::<kilogram>() - m1.get::<kilogram>()).abs() / m1.get::<kilogram>() < 1e-10);
+        assert!((r2.get::<kilogram>() - m2.get::<kilogram>()).abs() / m2.get::<kilogram>() < 1e-10);
+    }
+
+    #[test]
+    fn masses_from_mc_eta_roundtrip_asymmetric() {
+        let m1 = solar(40.0);
+        let m2 = solar(10.0);
+        let mc = chirp_mass(m1, m2);
+        let eta = symmetric_mass_ratio(m1, m2);
+        let (r1, r2) = masses_from_chirp_mass_eta(mc, eta);
+        assert!((r1.get::<kilogram>() - m1.get::<kilogram>()).abs() / m1.get::<kilogram>() < 1e-10);
+        assert!((r2.get::<kilogram>() - m2.get::<kilogram>()).abs() / m2.get::<kilogram>() < 1e-10);
+    }
+
+    #[test]
+    fn masses_from_mc_eta_ordering() {
+        let (m1, m2) = masses_from_chirp_mass_eta(solar(20.0), 0.18);
+        assert!(m1.get::<kilogram>() >= m2.get::<kilogram>());
+    }
+
     // ── Property tests ────────────────────────────────────────────────────────
 
     proptest! {
@@ -398,6 +537,36 @@ mod tests {
             let x = chi_p(solar(m1), solar(m2), a1, a2, tilt1, tilt2);
             prop_assert!(x >= 0.0 - 1e-10 && x <= 1.0 + 1e-10,
                 "chi_p={x} out of [0,1] for m1={m1} m2={m2} a1={a1} a2={a2} tilt1={tilt1} tilt2={tilt2}");
+        }
+
+        #[test]
+        fn prop_masses_from_mc_q_roundtrip(
+            m1 in 1.0_f64..200.0,
+            m2 in 1.0_f64..200.0,
+        ) {
+            prop_assume!(m1 >= m2);
+            let mc = chirp_mass(solar(m1), solar(m2));
+            let q  = mass_ratio(solar(m1), solar(m2));
+            let (r1, r2) = masses_from_chirp_mass_q(mc, q);
+            prop_assert!((r1.get::<kilogram>() / (m1 * MSUN_KG) - 1.0).abs() < 1e-9,
+                "m1 roundtrip failed: got {} expected {}", r1.get::<kilogram>() / MSUN_KG, m1);
+            prop_assert!((r2.get::<kilogram>() / (m2 * MSUN_KG) - 1.0).abs() < 1e-9,
+                "m2 roundtrip failed: got {} expected {}", r2.get::<kilogram>() / MSUN_KG, m2);
+        }
+
+        #[test]
+        fn prop_masses_from_mc_eta_roundtrip(
+            m1 in 1.0_f64..200.0,
+            m2 in 1.0_f64..200.0,
+        ) {
+            prop_assume!(m1 >= m2);
+            let mc  = chirp_mass(solar(m1), solar(m2));
+            let eta = symmetric_mass_ratio(solar(m1), solar(m2));
+            let (r1, r2) = masses_from_chirp_mass_eta(mc, eta);
+            prop_assert!((r1.get::<kilogram>() / (m1 * MSUN_KG) - 1.0).abs() < 1e-9,
+                "m1 roundtrip failed: got {} expected {}", r1.get::<kilogram>() / MSUN_KG, m1);
+            prop_assert!((r2.get::<kilogram>() / (m2 * MSUN_KG) - 1.0).abs() < 1e-9,
+                "m2 roundtrip failed: got {} expected {}", r2.get::<kilogram>() / MSUN_KG, m2);
         }
     }
 }

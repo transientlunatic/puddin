@@ -113,6 +113,63 @@ symmetric_mass_ratio <- Vectorize(.symmetric_mass_ratio_scalar)
 #' chirp_mass(30 * MSUN, 30 * MSUN) / MSUN  # ~26.1
 chirp_mass <- Vectorize(.chirp_mass_scalar)
 
+#' Component masses from chirp mass and mass ratio q
+#'
+#' @param mc_kg Chirp mass in kilograms (numeric vector)
+#' @param q     Mass ratio q = m2/m1 in (0, 1] (numeric vector)
+#' @return Named list with elements \code{m1} and \code{m2} in kilograms
+#'   (numeric vectors).
+#' @export
+#' @examples
+#' res <- masses_from_chirp_mass_q(chirp_mass(30 * MSUN, 20 * MSUN), 20/30)
+#' res$m1 / MSUN  # ~30
+#' res$m2 / MSUN  # ~20
+masses_from_chirp_mass_q <- function(mc_kg, q) {
+  mc_kg <- as.double(mc_kg)
+  q_vec <- as.double(q)
+  m1 <- mapply(function(mc, qv)
+    .C("r_puddin_m1_from_mc_q",
+       mc_kg = mc, q = qv, result = double(1L),
+       PACKAGE = "Puddin")$result,
+    mc_kg, q_vec)
+  m2 <- mapply(function(mc, qv)
+    .C("r_puddin_m2_from_mc_q",
+       mc_kg = mc, q = qv, result = double(1L),
+       PACKAGE = "Puddin")$result,
+    mc_kg, q_vec)
+  list(m1 = unname(m1), m2 = unname(m2))
+}
+
+#' Component masses from chirp mass and symmetric mass ratio eta
+#'
+#' @param mc_kg Chirp mass in kilograms (numeric vector)
+#' @param eta   Symmetric mass ratio eta = m1*m2/M^2 in (0, 0.25] (numeric vector)
+#' @return Named list with elements \code{m1} and \code{m2} in kilograms
+#'   (numeric vectors).
+#' @export
+#' @examples
+#' res <- masses_from_chirp_mass_eta(
+#'   chirp_mass(30 * MSUN, 20 * MSUN),
+#'   symmetric_mass_ratio(30 * MSUN, 20 * MSUN)
+#' )
+#' res$m1 / MSUN  # ~30
+#' res$m2 / MSUN  # ~20
+masses_from_chirp_mass_eta <- function(mc_kg, eta) {
+  mc_kg   <- as.double(mc_kg)
+  eta_vec <- as.double(eta)
+  m1 <- mapply(function(mc, ev)
+    .C("r_puddin_m1_from_mc_eta",
+       mc_kg = mc, eta = ev, result = double(1L),
+       PACKAGE = "Puddin")$result,
+    mc_kg, eta_vec)
+  m2 <- mapply(function(mc, ev)
+    .C("r_puddin_m2_from_mc_eta",
+       mc_kg = mc, eta = ev, result = double(1L),
+       PACKAGE = "Puddin")$result,
+    mc_kg, eta_vec)
+  list(m1 = unname(m1), m2 = unname(m2))
+}
+
 #' Effective inspiral spin chi_eff
 #'
 #' @param m1_kg  Component mass 1 (kg, numeric vector)

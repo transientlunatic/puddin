@@ -1,5 +1,8 @@
 use clap::{ArgAction, Parser, Subcommand};
-use puddin::binary::{chi_eff, chi_p, chirp_mass, mass_ratio, symmetric_mass_ratio, total_mass};
+use puddin::binary::{
+    chi_eff, chi_p, chirp_mass, mass_ratio, masses_from_chirp_mass_eta,
+    masses_from_chirp_mass_q, symmetric_mass_ratio, total_mass,
+};
 use uom::si::f64::Mass;
 use uom::si::mass::kilogram;
 
@@ -99,6 +102,30 @@ enum Command {
         /// Secondary tilt angle θ2 (radians)
         tilt2: f64,
     },
+
+    /// Component masses (m1, m2) from chirp mass ℳ and mass ratio q
+    ///
+    /// Prints m1 on the first line and m2 on the second.
+    /// Requires q ∈ (0, 1].
+    #[command(name = "masses-from-mc-q", alias = "inv-q")]
+    MassesFromMcQ {
+        /// Chirp mass ℳ
+        mc: f64,
+        /// Mass ratio q = m2/m1 ∈ (0, 1]
+        q: f64,
+    },
+
+    /// Component masses (m1, m2) from chirp mass ℳ and symmetric mass ratio η
+    ///
+    /// Prints m1 on the first line and m2 on the second.
+    /// Requires η ∈ (0, 0.25].
+    #[command(name = "masses-from-mc-eta", alias = "inv-eta")]
+    MassesFromMcEta {
+        /// Chirp mass ℳ
+        mc: f64,
+        /// Symmetric mass ratio η ∈ (0, 0.25]
+        eta: f64,
+    },
 }
 
 fn to_kg(val: f64, si: bool) -> f64 {
@@ -113,47 +140,83 @@ fn mass(val: f64, si: bool) -> Mass {
     Mass::new::<kilogram>(to_kg(val, si))
 }
 
+/// Print a single scalar result.
+fn print_scalar(value: f64, label: &str, unit: &str, verbose: bool) {
+    if verbose {
+        if unit.is_empty() {
+            println!("{label} = {value}");
+        } else {
+            println!("{label} = {value} {unit}");
+        }
+    } else {
+        println!("{value}");
+    }
+}
+
+/// Print a pair of masses (m1, m2) — one per line.
+fn print_pair(m1: f64, m2: f64, unit: &str, verbose: bool) {
+    if verbose {
+        if unit.is_empty() {
+            println!("m1 = {m1}");
+            println!("m2 = {m2}");
+        } else {
+            println!("m1 = {m1} {unit}");
+            println!("m2 = {m2} {unit}");
+        }
+    } else {
+        println!("{m1}");
+        println!("{m2}");
+    }
+}
+
 fn main() {
     let cli = Cli::parse();
     let si = cli.si;
     let verbose = cli.verbose;
+    let mass_unit = if si { "kg" } else { "Msun" };
 
-    let (result, label, unit) = match cli.command {
+    match cli.command {
         Command::TotalMass { m1, m2 } => {
             let r = total_mass(mass(m1, si), mass(m2, si));
-            let unit = if si { "kg" } else { "Msun" };
-            (from_kg(r.get::<kilogram>(), si), "total_mass", unit)
+            print_scalar(from_kg(r.get::<kilogram>(), si), "total_mass", mass_unit, verbose);
         }
         Command::MassRatio { m1, m2 } => {
             let r = mass_ratio(mass(m1, si), mass(m2, si));
-            (r, "mass_ratio", "")
+            print_scalar(r, "mass_ratio", "", verbose);
         }
         Command::SymMassRatio { m1, m2 } => {
             let r = symmetric_mass_ratio(mass(m1, si), mass(m2, si));
-            (r, "eta", "")
+            print_scalar(r, "eta", "", verbose);
         }
         Command::ChirpMass { m1, m2 } => {
             let r = chirp_mass(mass(m1, si), mass(m2, si));
-            let unit = if si { "kg" } else { "Msun" };
-            (from_kg(r.get::<kilogram>(), si), "chirp_mass", unit)
+            print_scalar(from_kg(r.get::<kilogram>(), si), "chirp_mass", mass_unit, verbose);
         }
         Command::ChiEff { m1, m2, a1, a2, tilt1, tilt2 } => {
             let r = chi_eff(mass(m1, si), mass(m2, si), a1, a2, tilt1, tilt2);
-            (r, "chi_eff", "")
+            print_scalar(r, "chi_eff", "", verbose);
         }
         Command::ChiP { m1, m2, a1, a2, tilt1, tilt2 } => {
             let r = chi_p(mass(m1, si), mass(m2, si), a1, a2, tilt1, tilt2);
-            (r, "chi_p", "")
+            print_scalar(r, "chi_p", "", verbose);
         }
-    };
-
-    if verbose {
-        if unit.is_empty() {
-            println!("{label} = {result}");
-        } else {
-            println!("{label} = {result} {unit}");
+        Command::MassesFromMcQ { mc, q } => {
+            let (r1, r2) = masses_from_chirp_mass_q(mass(mc, si), q);
+            print_pair(
+                from_kg(r1.get::<kilogram>(), si),
+                from_kg(r2.get::<kilogram>(), si),
+                mass_unit,
+                verbose,
+            );
         }
-    } else {
-        println!("{result}");
+        Command::MassesFromMcEta { mc, eta } => {
+            let (r1, r2) = masses_from_chirp_mass_eta(mass(mc, si), eta);
+            print_pair(
+                from_kg(r1.get::<kilogram>(), si),
+                from_kg(r2.get::<kilogram>(), si),
+                mass_unit,
+                verbose,
+            );
+        }
     }
 }

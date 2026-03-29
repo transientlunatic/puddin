@@ -60,6 +60,32 @@ class TestPlainSI:
             mt = puddin.total_mass(sol(m1), sol(m2))[0]
             assert mc <= mt + 1e-6
 
+    def test_masses_from_chirp_mass_q_roundtrip(self):
+        mc = puddin.chirp_mass(sol(30), sol(20))
+        q = puddin.mass_ratio(sol(30), sol(20))
+        (m1, m2) = puddin.masses_from_chirp_mass_q(mc, q)
+        assert math.isclose(m1[0] / MSUN_KG, 30.0, rel_tol=1e-8)
+        assert math.isclose(m2[0] / MSUN_KG, 20.0, rel_tol=1e-8)
+
+    def test_masses_from_chirp_mass_q_equal(self):
+        mc = puddin.chirp_mass(sol(30), sol(30))
+        (m1, m2) = puddin.masses_from_chirp_mass_q(mc, np.array([1.0]))
+        assert math.isclose(m1[0] / MSUN_KG, 30.0, rel_tol=1e-8)
+        assert math.isclose(m2[0] / MSUN_KG, 30.0, rel_tol=1e-8)
+
+    def test_masses_from_chirp_mass_eta_roundtrip(self):
+        mc = puddin.chirp_mass(sol(30), sol(20))
+        eta = puddin.symmetric_mass_ratio(sol(30), sol(20))
+        (m1, m2) = puddin.masses_from_chirp_mass_eta(mc, eta)
+        assert math.isclose(m1[0] / MSUN_KG, 30.0, rel_tol=1e-8)
+        assert math.isclose(m2[0] / MSUN_KG, 20.0, rel_tol=1e-8)
+
+    def test_masses_from_chirp_mass_eta_equal(self):
+        mc = puddin.chirp_mass(sol(30), sol(30))
+        (m1, m2) = puddin.masses_from_chirp_mass_eta(mc, np.array([0.25]))
+        assert math.isclose(m1[0] / MSUN_KG, 30.0, rel_tol=1e-8)
+        assert math.isclose(m2[0] / MSUN_KG, 30.0, rel_tol=1e-8)
+
     def test_chi_eff_aligned(self):
         x = puddin.chi_eff(sol(30), sol(30), np.array([0.5]), np.array([0.5]),
                            np.array([0.0]), np.array([0.0]))[0]

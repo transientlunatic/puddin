@@ -45,6 +45,30 @@ double puddin_symmetric_mass_ratio(double m1_kg, double m2_kg);
 double puddin_chirp_mass(double m1_kg, double m2_kg);
 
 /**
+ * Primary mass m1 (kg) from chirp mass Mc (kg) and mass ratio q = m2/m1.
+ * Requires q in (0, 1].
+ */
+double puddin_m1_from_mc_q(double mc_kg, double q);
+
+/**
+ * Secondary mass m2 (kg) from chirp mass Mc (kg) and mass ratio q = m2/m1.
+ * Requires q in (0, 1].
+ */
+double puddin_m2_from_mc_q(double mc_kg, double q);
+
+/**
+ * Primary mass m1 (kg) from chirp mass Mc (kg) and symmetric mass ratio eta.
+ * Requires eta in (0, 0.25].
+ */
+double puddin_m1_from_mc_eta(double mc_kg, double eta);
+
+/**
+ * Secondary mass m2 (kg) from chirp mass Mc (kg) and symmetric mass ratio eta.
+ * Requires eta in (0, 0.25].
+ */
+double puddin_m2_from_mc_eta(double mc_kg, double eta);
+
+/**
  * Effective inspiral spin chi_eff in [-1, 1] (dimensionless).
  *
  * @param m1_kg   Component mass 1 (kg)

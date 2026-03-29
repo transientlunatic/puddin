@@ -28,6 +28,42 @@ const MSUN = Puddin.MSUN
         @test chirp_mass(m, m) ≈ mc_expected  rtol=1e-10
     end
 
+    @testset "masses_from_chirp_mass_q roundtrip" begin
+        m1 = 30.0 * MSUN
+        m2 = 20.0 * MSUN
+        mc = chirp_mass(m1, m2)
+        q  = mass_ratio(m1, m2)
+        (r1, r2) = masses_from_chirp_mass_q(mc, q)
+        @test r1 ≈ m1  rtol=1e-10
+        @test r2 ≈ m2  rtol=1e-10
+    end
+
+    @testset "masses_from_chirp_mass_q equal masses" begin
+        m = 30.0 * MSUN
+        mc = chirp_mass(m, m)
+        (r1, r2) = masses_from_chirp_mass_q(mc, 1.0)
+        @test r1 ≈ m  rtol=1e-10
+        @test r2 ≈ m  rtol=1e-10
+    end
+
+    @testset "masses_from_chirp_mass_eta roundtrip" begin
+        m1 = 30.0 * MSUN
+        m2 = 20.0 * MSUN
+        mc  = chirp_mass(m1, m2)
+        eta = symmetric_mass_ratio(m1, m2)
+        (r1, r2) = masses_from_chirp_mass_eta(mc, eta)
+        @test r1 ≈ m1  rtol=1e-10
+        @test r2 ≈ m2  rtol=1e-10
+    end
+
+    @testset "masses_from_chirp_mass_eta equal masses" begin
+        m = 30.0 * MSUN
+        mc = chirp_mass(m, m)
+        (r1, r2) = masses_from_chirp_mass_eta(mc, 0.25)
+        @test r1 ≈ m  rtol=1e-10
+        @test r2 ≈ m  rtol=1e-10
+    end
+
     @testset "chi_eff — non-spinning" begin
         m = 30.0 * MSUN
         @test chi_eff(m, m, 0.0, 0.0, 0.0, 0.0) ≈ 0.0  atol=1e-15

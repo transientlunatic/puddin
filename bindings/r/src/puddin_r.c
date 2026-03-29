@@ -32,6 +32,22 @@ void r_puddin_chirp_mass(double *m1_kg, double *m2_kg, double *result) {
     *result = puddin_chirp_mass(*m1_kg, *m2_kg);
 }
 
+void r_puddin_m1_from_mc_q(double *mc_kg, double *q, double *result) {
+    *result = puddin_m1_from_mc_q(*mc_kg, *q);
+}
+
+void r_puddin_m2_from_mc_q(double *mc_kg, double *q, double *result) {
+    *result = puddin_m2_from_mc_q(*mc_kg, *q);
+}
+
+void r_puddin_m1_from_mc_eta(double *mc_kg, double *eta, double *result) {
+    *result = puddin_m1_from_mc_eta(*mc_kg, *eta);
+}
+
+void r_puddin_m2_from_mc_eta(double *mc_kg, double *eta, double *result) {
+    *result = puddin_m2_from_mc_eta(*mc_kg, *eta);
+}
+
 void r_puddin_chi_eff(
     double *m1_kg, double *m2_kg,
     double *a1, double *a2,
@@ -57,6 +73,10 @@ static const R_CMethodDef cMethods[] = {
     {"r_puddin_mass_ratio",             (DL_FUNC) &r_puddin_mass_ratio,             3},
     {"r_puddin_symmetric_mass_ratio",   (DL_FUNC) &r_puddin_symmetric_mass_ratio,   3},
     {"r_puddin_chirp_mass",             (DL_FUNC) &r_puddin_chirp_mass,             3},
+    {"r_puddin_m1_from_mc_q",           (DL_FUNC) &r_puddin_m1_from_mc_q,           3},
+    {"r_puddin_m2_from_mc_q",           (DL_FUNC) &r_puddin_m2_from_mc_q,           3},
+    {"r_puddin_m1_from_mc_eta",         (DL_FUNC) &r_puddin_m1_from_mc_eta,         3},
+    {"r_puddin_m2_from_mc_eta",         (DL_FUNC) &r_puddin_m2_from_mc_eta,         3},
     {"r_puddin_chi_eff",                (DL_FUNC) &r_puddin_chi_eff,                7},
     {"r_puddin_chi_p",                  (DL_FUNC) &r_puddin_chi_p,                  7},
     {NULL, NULL, 0}

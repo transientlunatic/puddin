@@ -1,8 +1,8 @@
 # Configuration file for the Sphinx documentation builder.
 
 project = "Puddin"
-copyright = "2026, The Puddin Authors"
-author = "The Puddin Authors"
+copyright = "2026, Daniel Williams"
+author = "Daniel Williams"
 release = "0.1.0"
 
 extensions = [
@@ -20,7 +20,7 @@ rust_crates = [
 myst_enable_extensions = ["dollarmath", "amsmath"]
 
 # HTML theme
-html_theme = "furo"
+html_theme = "sphinx-kentigern"
 html_title = "Puddin"
 
 # Source file suffixes

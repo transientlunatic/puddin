@@ -90,6 +90,53 @@ fn chirp_mass<'py>(
     Ok(result.into_pyarray_bound(py))
 }
 
+/// Component masses $(m_1, m_2)$ from chirp mass $\mathcal{M}$ and mass ratio $q$.
+///
+/// Returns a tuple of two arrays `(m1, m2)` in kilograms.
+/// Requires `q` ∈ (0, 1].
+#[pyfunction]
+fn masses_from_chirp_mass_q<'py>(
+    py: Python<'py>,
+    mc: PyReadonlyArray1<'py, f64>,
+    q: PyReadonlyArray1<'py, f64>,
+) -> PyResult<(Bound<'py, PyArray1<f64>>, Bound<'py, PyArray1<f64>>)> {
+    let mc_masses = array_to_masses(&mc);
+    let q_arr = q.as_array();
+    let (m1s, m2s): (Vec<f64>, Vec<f64>) = mc_masses
+        .into_iter()
+        .zip(q_arr.iter())
+        .map(|(mc_val, &q_val)| {
+            let (m1, m2) = binary::masses_from_chirp_mass_q(mc_val, q_val);
+            (m1.get::<kilogram>(), m2.get::<kilogram>())
+        })
+        .unzip();
+    Ok((m1s.into_pyarray_bound(py), m2s.into_pyarray_bound(py)))
+}
+
+/// Component masses $(m_1, m_2)$ from chirp mass $\mathcal{M}$ and symmetric
+/// mass ratio $\eta$.
+///
+/// Returns a tuple of two arrays `(m1, m2)` in kilograms.
+/// Requires `eta` ∈ (0, 0.25].
+#[pyfunction]
+fn masses_from_chirp_mass_eta<'py>(
+    py: Python<'py>,
+    mc: PyReadonlyArray1<'py, f64>,
+    eta: PyReadonlyArray1<'py, f64>,
+) -> PyResult<(Bound<'py, PyArray1<f64>>, Bound<'py, PyArray1<f64>>)> {
+    let mc_masses = array_to_masses(&mc);
+    let eta_arr = eta.as_array();
+    let (m1s, m2s): (Vec<f64>, Vec<f64>) = mc_masses
+        .into_iter()
+        .zip(eta_arr.iter())
+        .map(|(mc_val, &eta_val)| {
+            let (m1, m2) = binary::masses_from_chirp_mass_eta(mc_val, eta_val);
+            (m1.get::<kilogram>(), m2.get::<kilogram>())
+        })
+        .unzip();
+    Ok((m1s.into_pyarray_bound(py), m2s.into_pyarray_bound(py)))
+}
+
 /// Effective inspiral spin $\chi_\mathrm{eff}$.
 #[pyfunction]
 #[allow(clippy::too_many_arguments)]
@@ -148,6 +195,8 @@ fn _puddin(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(mass_ratio, m)?)?;
     m.add_function(wrap_pyfunction!(symmetric_mass_ratio, m)?)?;
     m.add_function(wrap_pyfunction!(chirp_mass, m)?)?;
+    m.add_function(wrap_pyfunction!(masses_from_chirp_mass_q, m)?)?;
+    m.add_function(wrap_pyfunction!(masses_from_chirp_mass_eta, m)?)?;
     m.add_function(wrap_pyfunction!(chi_eff, m)?)?;
     m.add_function(wrap_pyfunction!(chi_p, m)?)?;
     Ok(())
