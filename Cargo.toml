@@ -1,7 +1,16 @@
 [workspace]
 members = [
     "crates/puddin",
-    "bindings/python",
+    # bindings/wasm can be a workspace member: wasm-bindgen has no special
+    # linking requirements like pyo3's libpython, so `cargo check --workspace`
+    # works on a native host.  wasm-pack supplies the wasm32 target for the
+    # actual binary build.
+    "bindings/wasm",
+    # bindings/python is intentionally excluded from the default workspace.
+    # It is built exclusively through maturin, which injects the required
+    # pyo3/extension-module feature.  Including it here would cause
+    # `cargo test --workspace` to link against libpython, requiring Python
+    # dev headers in the Rust build environment.
 ]
 resolver = "2"
 
@@ -18,3 +27,10 @@ uom = { version = "0.36", features = ["f64", "si"] }
 proptest = "1"
 pyo3 = { version = "0.23", features = ["extension-module"] }
 numpy = "0.23"
+
+# Optimise WASM release builds aggressively for binary size (the .wasm file
+# is downloaded by end-users).  lto + opt-level="z" shaves ~40 % off the
+# default release size.
+[profile.release]
+opt-level = "z"
+lto = true

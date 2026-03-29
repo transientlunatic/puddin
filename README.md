@@ -13,6 +13,90 @@ It's the spiritual successor to the LALSuite library, but with a much more moder
 What's in puddin?
 ------------------
 
-- Parameter transforms and conversions
-- Useful units and constants
+- Parameter transforms and conversions (binary system: total mass, mass ratio, symmetric mass ratio, chirp mass, χ_eff, χ_p)
+- Useful units and constants (solar mass, SI throughout)
+- Compile-time physical unit safety via [`uom`](https://crates.io/crates/uom)
+
+Language interfaces
+-------------------
+
+| Language       | Status      | Notes |
+|---------------|-------------|-------|
+| Rust           | ✅ stable   | core crate `puddin` |
+| Python         | ✅ stable   | `pip install puddin`; numpy, astropy, pint, JAX all supported |
+| JavaScript/TypeScript | ✅ stable | `npm install puddin-wasm`; vectorised `Float64Array` API + scalar helpers |
+| Julia          | 🔜 planned  | `ccall` into the Rust shared library |
+
+Installation
+------------
+
+### Python
+
+```bash
+pip install puddin
+```
+
+Works with plain numpy arrays, astropy quantities, pint quantities, and JAX arrays.
+JAX integration uses `jax.pure_callback` so Rust functions are callable inside JIT-compiled code.
+
+```python
+import numpy as np
+import puddin
+
+MSUN = 1.988_416e30  # kg
+
+m1 = np.array([30.0]) * MSUN
+m2 = np.array([30.0]) * MSUN
+
+print(puddin.chirp_mass(m1, m2) / MSUN)   # ~26.1 M☉
+```
+
+### JavaScript / TypeScript
+
+```bash
+npm install puddin-wasm
+```
+
+```ts
+import { MSUN, chirp_mass_scalar, chirp_mass } from 'puddin-wasm/puddin';
+
+// Scalar convenience function
+const mc = chirp_mass_scalar(30 * MSUN, 30 * MSUN);   // kg
+
+// Vectorised (Float64Array in, Float64Array out)
+const m1 = new Float64Array([30 * MSUN, 10 * MSUN]);
+const m2 = new Float64Array([30 * MSUN,  5 * MSUN]);
+const mc_arr = chirp_mass(m1, m2);
+```
+
+### Rust
+
+```toml
+[dependencies]
+puddin = "0.1"
+```
+
+```rust
+use puddin::binary;
+use uom::si::f64::Mass;
+use uom::si::mass::kilogram;
+
+let m = Mass::new::<kilogram>(30.0 * puddin::binary::MSUN);
+let mc = binary::chirp_mass(m, m);
+```
+
+Development
+-----------
+
+```bash
+# Run all core tests
+cargo test -p puddin
+
+# Build Python bindings (requires maturin)
+pip install maturin
+maturin develop --extras dev --manifest-path bindings/python/pyproject.toml
+
+# Build WASM package (requires wasm-pack)
+wasm-pack build --target bundler bindings/wasm
+```
 

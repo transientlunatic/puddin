@@ -3,6 +3,12 @@ Puddin
 
 .. toctree::
    :maxdepth: 1
+   :caption: Getting started
+
+   interfaces
+
+.. toctree::
+   :maxdepth: 1
    :caption: Theory
 
    theory/binary_parameters

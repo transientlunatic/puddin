@@ -1,0 +1,153 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+
+  # ── Rust formatting & linting ───────────────────────────────────────────────
+
+  rust-checks:
+    name: Rust — fmt & clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        run: cargo fmt --all --check
+
+      - name: Clippy
+        run: cargo clippy -p puddin -- -D warnings
+
+  # ── Rust tests (unit, integration, doc-tests) ───────────────────────────────
+
+  rust-tests:
+    name: Rust — tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: cargo test
+        run: cargo test -p puddin
+
+      - name: cargo doc
+        run: cargo doc -p puddin --no-deps
+
+  # ── Python build & test ─────────────────────────────────────────────────────
+
+  python-tests:
+    name: Python — build & test (${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install maturin
+        run: pip install "maturin>=1.7,<2.0"
+
+      - name: Build and install (dev mode)
+        working-directory: bindings/python
+        run: maturin develop --extras dev
+
+      - name: pytest
+        working-directory: bindings/python
+        run: pytest tests/ -v
+
+  # ── Sphinx documentation build ──────────────────────────────────────────────
+
+  docs:
+    name: Docs — Sphinx build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # sphinx-rust runs the Rust analyzer, so the toolchain is required
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install doc dependencies
+        run: pip install -r docs/requirements.txt
+
+      - name: Build docs
+        # -n: warn on missing references; -q: quiet; not -W yet because
+        # sphinx-rust is early-stage and may produce spurious warnings.
+        run: sphinx-build -n -b html docs/ docs/_build/html
+
+  # ── WASM build & type-check ─────────────────────────────────────────────────
+
+  wasm-build:
+    name: WASM — wasm-pack build & type-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: wasm-pack build (bundler target)
+        working-directory: bindings/wasm
+        run: wasm-pack build --target bundler --out-dir pkg
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install TypeScript compiler
+        run: npm install -g typescript
+
+      - name: Copy TypeScript wrapper into pkg
+        run: cp bindings/wasm/js/puddin.ts bindings/wasm/pkg/
+
+      - name: Type-check TypeScript wrapper
+        # Use moduleResolution so the .js extension in the import is resolved.
+        run: |
+          tsc --strict --noEmit --moduleResolution bundler \
+              --target ES2022 --module ESNext \
+              bindings/wasm/pkg/puddin.ts
+
+      - name: Upload WASM package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasm-pkg
+          path: bindings/wasm/pkg/

@@ -1,0 +1,188 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+
+  # ── Build binary wheels ─────────────────────────────────────────────────────
+  #
+  # We build for:
+  #   Linux   x86_64  (manylinux)
+  #   Linux   aarch64 (manylinux, cross-compiled via QEMU — common on clusters)
+  #   macOS   universal2 (covers both Apple Silicon and Intel in one wheel)
+  #   Windows x86_64
+
+  build-wheels:
+    name: Wheel — ${{ matrix.target }} (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64
+            manylinux: auto
+          - os: ubuntu-latest
+            target: aarch64
+            manylinux: auto
+          - os: macos-latest
+            target: universal2-apple-darwin
+            manylinux: ""
+          - os: windows-latest
+            target: x86_64
+            manylinux: ""
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          working-directory: bindings/python
+          command: build
+          target: ${{ matrix.target }}
+          args: --release --out dist
+          manylinux: ${{ matrix.manylinux }}
+          # QEMU is required for cross-compilation to aarch64 on ubuntu-latest
+          before-script-linux: |
+            if [ "${{ matrix.target }}" = "aarch64" ]; then
+              docker run --privileged --rm tonistiigi/binfmt --install all
+            fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}-${{ matrix.target }}
+          path: bindings/python/dist
+          if-no-files-found: error
+
+  # ── Build source distribution ───────────────────────────────────────────────
+
+  sdist:
+    name: Source distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build sdist
+        uses: PyO3/maturin-action@v1
+        with:
+          working-directory: bindings/python
+          command: sdist
+          args: --out dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: bindings/python/dist
+          if-no-files-found: error
+
+  # ── Publish to PyPI via trusted publishing (OIDC) ──────────────────────────
+  #
+  # Before this will work, you must configure PyPI trusted publishing:
+  #   PyPI project → Settings → Publishing → Add a new pending publisher
+  #     Publisher: GitHub
+  #     Owner:      transientlunatic
+  #     Repository: puddin
+  #     Workflow:   release.yml
+  #     Environment: pypi
+
+  publish:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    needs: [build-wheels, sdist]
+    environment:
+      name: pypi
+      url: https://pypi.org/p/puddin
+    permissions:
+      id-token: write  # required for OIDC trusted publishing
+
+    steps:
+      - name: Download all wheels
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          merge-multiple: true
+          path: dist
+
+      - name: Download sdist
+        uses: actions/download-artifact@v4
+        with:
+          name: sdist
+          path: dist
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypa-publish@release/v1
+
+  # ── Build WASM package ──────────────────────────────────────────────────────
+
+  build-wasm:
+    name: Build WASM package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: wasm-pack build (bundler target)
+        working-directory: bindings/wasm
+        run: wasm-pack build --target bundler --out-dir pkg
+
+      - name: Copy TypeScript wrapper into pkg
+        run: cp bindings/wasm/js/puddin.ts bindings/wasm/pkg/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wasm-pkg
+          path: bindings/wasm/pkg/
+          if-no-files-found: error
+
+  # ── Publish WASM package to npm ─────────────────────────────────────────────
+  #
+  # Before this will work, create a repository secret NPM_TOKEN containing
+  # an npm Automation token (npmjs.com → Access Tokens → Generate).
+  # A Granular token scoped to the puddin-wasm package is recommended.
+
+  publish-npm:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    needs: build-wasm
+    environment:
+      name: npm
+      url: https://www.npmjs.com/package/puddin-wasm
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Download WASM package
+        uses: actions/download-artifact@v4
+        with:
+          name: wasm-pkg
+          path: pkg
+
+      - name: Publish
+        working-directory: pkg
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
