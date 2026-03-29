@@ -263,7 +263,7 @@ int main(void) {
 }
 ```
 
-See [examples/c/example.c](../examples/c/example.c) for a complete example with a `Makefile`.
+See `examples/c/example.c` in the repository for a complete runnable example with a `Makefile`.
 
 ---
 
@@ -291,7 +291,7 @@ int main() {
 }
 ```
 
-See [examples/cpp/example.cpp](../examples/cpp/example.cpp) for the full example.
+See `examples/cpp/example.cpp` in the repository for the full example.
 
 ---
 
@@ -323,7 +323,7 @@ gfortran example.f90 \
     -o example
 ```
 
-See [examples/fortran/example.f90](../examples/fortran/example.f90) for the full example.
+See `examples/fortran/example.f90` in the repository for the full example.
 
 ---
 
@@ -350,7 +350,7 @@ func main() {
 cd examples/go && go run example.go
 ```
 
-See [examples/go/example.go](../examples/go/example.go) for the full example.
+See `examples/go/example.go` in the repository for the full example.
 
 ---
 
@@ -415,4 +415,4 @@ masses_sun = 10:10:50;
 mc = arrayfun(@(m) calllib('puddin', 'puddin_chirp_mass', m*MSUN, m*MSUN)/MSUN, masses_sun);
 ```
 
-See [examples/matlab/example.m](../examples/matlab/example.m) for the full example.
+See `examples/matlab/example.m` in the repository for the full example.

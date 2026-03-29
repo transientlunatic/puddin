@@ -30,7 +30,9 @@ jobs:
         run: cargo fmt --all --check
 
       - name: Clippy
-        run: cargo clippy -p puddin -- -D warnings
+        # puddin-julia is a workspace cdylib; puddin-wasm is verified by the
+        # separate wasm-build job (requires --target wasm32-unknown-unknown).
+        run: cargo clippy -p puddin -p puddin-julia -- -D warnings
 
   # ── Rust tests (unit, integration, doc-tests) ───────────────────────────────
 

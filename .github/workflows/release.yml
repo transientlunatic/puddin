@@ -186,3 +186,63 @@ jobs:
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # ── Build & upload C shared library ────────────────────────────────────────
+  #
+  # Produces a platform-specific tarball / zip containing:
+  #   libpuddin_julia.{so,dylib,dll}  — shared library
+  #   puddin.h                         — C header
+  #
+  # Consumers: C, C++, Fortran, Go, MATLAB, R (any language with a C FFI).
+  # Extract and point your build system at the lib + header.
+
+  build-c-library:
+    name: C library — ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write        # required to upload assets to the GitHub Release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            lib_file: libpuddin_julia.so
+            archive: puddin-c-linux-x86_64.tar.gz
+          - os: macos-latest
+            lib_file: libpuddin_julia.dylib
+            archive: puddin-c-macos-arm64.tar.gz
+          - os: windows-latest
+            lib_file: puddin_julia.dll
+            archive: puddin-c-windows-x86_64.zip
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build shared library
+        run: cargo build --release -p puddin-julia
+
+      - name: Stage artifacts (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          mkdir dist
+          cp target/release/${{ matrix.lib_file }} dist/
+          cp bindings/julia/include/puddin.h dist/
+          tar czf ${{ matrix.archive }} -C dist .
+
+      - name: Stage artifacts (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Name dist | Out-Null
+          Copy-Item target\release\${{ matrix.lib_file }} dist\
+          Copy-Item bindings\julia\include\puddin.h dist\
+          Compress-Archive -Path dist\* -DestinationPath ${{ matrix.archive }}
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.archive }}
