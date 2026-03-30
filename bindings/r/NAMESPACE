@@ -5,6 +5,8 @@ export(
   mass_ratio,
   symmetric_mass_ratio,
   chirp_mass,
+  masses_from_chirp_mass_q,
+  masses_from_chirp_mass_eta,
   chi_eff,
   chi_p
 )

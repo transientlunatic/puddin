@@ -16,10 +16,16 @@ fn gw150914_like_parameters() {
     let m2 = sol(30.6);
 
     let mc = chirp_mass(m1, m2).get::<kilogram>() / MSUN_KG;
-    assert!((mc - 28.3).abs() < 0.5, "chirp mass {mc:.2} outside expected range");
+    assert!(
+        (mc - 28.3).abs() < 0.5,
+        "chirp mass {mc:.2} outside expected range"
+    );
 
     let q = mass_ratio(m1, m2);
-    assert!((q - 0.86).abs() < 0.05, "mass ratio {q:.3} outside expected range");
+    assert!(
+        (q - 0.86).abs() < 0.05,
+        "mass ratio {q:.3} outside expected range"
+    );
 
     let eta = symmetric_mass_ratio(m1, m2);
     assert!(eta > 0.0 && eta <= 0.25);

@@ -34,6 +34,44 @@ test_that("chi_p is zero for non-spinning binary", {
   expect_equal(chi_p(m, m, 0, 0, 0, 0), 0, tolerance = 1e-15)
 })
 
+test_that("masses_from_chirp_mass_q roundtrip", {
+  mc  <- chirp_mass(30 * MSUN, 20 * MSUN)
+  q   <- mass_ratio(30 * MSUN, 20 * MSUN)
+  res <- masses_from_chirp_mass_q(mc, q)
+  expect_equal(res$m1, 30 * MSUN, tolerance = 1e-8)
+  expect_equal(res$m2, 20 * MSUN, tolerance = 1e-8)
+})
+
+test_that("masses_from_chirp_mass_q equal masses", {
+  mc  <- chirp_mass(30 * MSUN, 30 * MSUN)
+  res <- masses_from_chirp_mass_q(mc, 1.0)
+  expect_equal(res$m1, 30 * MSUN, tolerance = 1e-8)
+  expect_equal(res$m2, 30 * MSUN, tolerance = 1e-8)
+})
+
+test_that("masses_from_chirp_mass_eta roundtrip", {
+  mc  <- chirp_mass(30 * MSUN, 20 * MSUN)
+  eta <- symmetric_mass_ratio(30 * MSUN, 20 * MSUN)
+  res <- masses_from_chirp_mass_eta(mc, eta)
+  expect_equal(res$m1, 30 * MSUN, tolerance = 1e-8)
+  expect_equal(res$m2, 20 * MSUN, tolerance = 1e-8)
+})
+
+test_that("masses_from_chirp_mass_eta equal masses", {
+  mc  <- chirp_mass(30 * MSUN, 30 * MSUN)
+  res <- masses_from_chirp_mass_eta(mc, 0.25)
+  expect_equal(res$m1, 30 * MSUN, tolerance = 1e-8)
+  expect_equal(res$m2, 30 * MSUN, tolerance = 1e-8)
+})
+
+test_that("masses_from_chirp_mass_q vectorised", {
+  mc  <- chirp_mass(c(30, 15) * MSUN, c(20, 10) * MSUN)
+  q   <- mass_ratio(c(30, 15) * MSUN, c(20, 10) * MSUN)
+  res <- masses_from_chirp_mass_q(mc, q)
+  expect_length(res$m1, 2L)
+  expect_length(res$m2, 2L)
+})
+
 test_that("functions are vectorised", {
   m1 <- c(30, 20, 10) * MSUN
   m2 <- c(30, 20,  5) * MSUN

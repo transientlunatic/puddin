@@ -15,7 +15,6 @@ import numpy as np
 import jax
 import jax.numpy as jnp
 from jax import pure_callback
-from jax.lib import xla_client
 
 from puddin import _puddin  # the compiled Rust extension
 
@@ -26,13 +25,20 @@ def _result_shape(x: jax.Array) -> jax.ShapeDtypeStruct:
     return jax.ShapeDtypeStruct(x.shape, x.dtype)
 
 
+def _np(fn):
+    """Wrap a Rust function so JAX ArrayImpl inputs are converted to numpy."""
+    def wrapped(*args):
+        return fn(*[np.ascontiguousarray(a, dtype=np.float64) for a in args])
+    return wrapped
+
+
 # ── total_mass ────────────────────────────────────────────────────────────────
 
 @jax.custom_vjp
 def total_mass(m1: jax.Array, m2: jax.Array) -> jax.Array:
     """Total mass M = m1 + m2 (kg)."""
     return pure_callback(
-        _puddin.total_mass, _result_shape(m1), m1, m2, vectorized=True
+        _np(_puddin.total_mass), _result_shape(m1), m1, m2, vmap_method="sequential"
     )
 
 
@@ -53,7 +59,7 @@ total_mass.defvjp(_total_mass_fwd, _total_mass_bwd)
 def mass_ratio(m1: jax.Array, m2: jax.Array) -> jax.Array:
     """Mass ratio q = m2 / m1."""
     return pure_callback(
-        _puddin.mass_ratio, _result_shape(m1), m1, m2, vectorized=True
+        _np(_puddin.mass_ratio), _result_shape(m1), m1, m2, vmap_method="sequential"
     )
 
 
@@ -75,7 +81,7 @@ mass_ratio.defvjp(_mass_ratio_fwd, _mass_ratio_bwd)
 def symmetric_mass_ratio(m1: jax.Array, m2: jax.Array) -> jax.Array:
     """Symmetric mass ratio η = m1*m2 / (m1+m2)^2."""
     return pure_callback(
-        _puddin.symmetric_mass_ratio, _result_shape(m1), m1, m2, vectorized=True
+        _np(_puddin.symmetric_mass_ratio), _result_shape(m1), m1, m2, vmap_method="sequential"
     )
 
 
@@ -101,19 +107,18 @@ symmetric_mass_ratio.defvjp(_eta_fwd, _eta_bwd)
 def chirp_mass(m1: jax.Array, m2: jax.Array) -> jax.Array:
     """Chirp mass Mc = (m1*m2)^(3/5) / M^(1/5) (kg)."""
     return pure_callback(
-        _puddin.chirp_mass, _result_shape(m1), m1, m2, vectorized=True
+        _np(_puddin.chirp_mass), _result_shape(m1), m1, m2, vmap_method="sequential"
     )
 
 
 def _mc_fwd(m1, m2):
-    return chirp_mass(m1, m2), (m1, m2)
+    mc = chirp_mass(m1, m2)
+    return mc, (m1, m2, mc)
 
 
 def _mc_bwd(res, g):
-    m1, m2 = res
+    m1, m2, Mc = res
     M = m1 + m2
-    eta = m1 * m2 / (M ** 2)
-    Mc = (m1 * m2) ** (3.0 / 5.0) / M ** (1.0 / 5.0)
     # dMc/dm1 = Mc * (3/(5*m1) - 1/(5*M))
     dMc_dm1 = Mc * (3.0 / (5.0 * m1) - 1.0 / (5.0 * M))
     dMc_dm2 = Mc * (3.0 / (5.0 * m2) - 1.0 / (5.0 * M))
@@ -135,10 +140,10 @@ def chi_eff(
 ) -> jax.Array:
     """Effective inspiral spin χ_eff."""
     return pure_callback(
-        _puddin.chi_eff,
+        _np(_puddin.chi_eff),
         _result_shape(m1),
         m1, m2, a1, a2, tilt1, tilt2,
-        vectorized=True,
+        vmap_method="sequential",
     )
 
 
@@ -175,10 +180,10 @@ def chi_p(
 ) -> jax.Array:
     """Effective precession spin χ_p."""
     return pure_callback(
-        _puddin.chi_p,
+        _np(_puddin.chi_p),
         _result_shape(m1),
         m1, m2, a1, a2, tilt1, tilt2,
-        vectorized=True,
+        vmap_method="sequential",
     )
 
 
@@ -220,3 +225,86 @@ def _chi_p_bwd(res, g):
 
 
 chi_p.defvjp(_chi_p_fwd, _chi_p_bwd)
+
+# ── masses_from_chirp_mass_q ──────────────────────────────────────────────────
+
+def _mc_q_result_shapes(mc, q):
+    return (_result_shape(mc), _result_shape(mc))
+
+
+@jax.custom_vjp
+def masses_from_chirp_mass_q(mc: jax.Array, q: jax.Array):
+    """Component masses (m1, m2) from chirp mass Mc and mass ratio q."""
+    return pure_callback(
+        _np(_puddin.masses_from_chirp_mass_q),
+        _mc_q_result_shapes(mc, q),
+        mc, q,
+        vmap_method="sequential",
+    )
+
+
+def _mc_q_fwd(mc, q):
+    return masses_from_chirp_mass_q(mc, q), (mc, q)
+
+
+def _mc_q_bwd(res, g):
+    mc, q = res
+    gm1, gm2 = g
+    eta = q / (1.0 + q) ** 2
+    M = mc / eta ** (3.0 / 5.0)
+    # m1 = M / (1 + q),  m2 = q * m1
+    # dM/dMc = 1/eta^(3/5)
+    dM_dmc = 1.0 / eta ** (3.0 / 5.0)
+    dM_dq = mc * (-3.0 / 5.0) * eta ** (-8.0 / 5.0) * (1.0 - q) / (1.0 + q) ** 3
+    dm1_dmc = dM_dmc / (1.0 + q)
+    dm1_dq = dM_dq / (1.0 + q) - M / (1.0 + q) ** 2
+    dm2_dmc = dm1_dmc * q + M / (1.0 + q)  # chain rule: m2 = q * m1
+    dm2_dq = dm1_dq * q + M / (1.0 + q)   # dm2/dq = dm1/dq * q + m1
+    g_mc = gm1 * dm1_dmc + gm2 * dm2_dmc
+    g_q = gm1 * dm1_dq + gm2 * dm2_dq
+    return g_mc, g_q
+
+
+masses_from_chirp_mass_q.defvjp(_mc_q_fwd, _mc_q_bwd)
+
+# ── masses_from_chirp_mass_eta ────────────────────────────────────────────────
+
+def _mc_eta_result_shapes(mc, eta):
+    return (_result_shape(mc), _result_shape(mc))
+
+
+@jax.custom_vjp
+def masses_from_chirp_mass_eta(mc: jax.Array, eta: jax.Array):
+    """Component masses (m1, m2) from chirp mass Mc and symmetric mass ratio eta."""
+    return pure_callback(
+        _np(_puddin.masses_from_chirp_mass_eta),
+        _mc_eta_result_shapes(mc, eta),
+        mc, eta,
+        vmap_method="sequential",
+    )
+
+
+def _mc_eta_fwd(mc, eta):
+    return masses_from_chirp_mass_eta(mc, eta), (mc, eta)
+
+
+def _mc_eta_bwd(res, g):
+    mc, eta = res
+    gm1, gm2 = g
+    eta_safe = jnp.minimum(eta, 0.25)
+    disc = jnp.sqrt(jnp.maximum(1.0 - 4.0 * eta_safe, 0.0))
+    M = mc / eta_safe ** (3.0 / 5.0)
+    # m1 = M(1+disc)/2,  m2 = M(1-disc)/2
+    dM_dmc = 1.0 / eta_safe ** (3.0 / 5.0)
+    dM_deta = mc * (-3.0 / 5.0) * eta_safe ** (-8.0 / 5.0)
+    ddisc_deta = jnp.where(disc > 0.0, -2.0 / disc, 0.0)
+    dm1_dmc = dM_dmc * (1.0 + disc) / 2.0
+    dm1_deta = dM_deta * (1.0 + disc) / 2.0 + M * ddisc_deta / 2.0
+    dm2_dmc = dM_dmc * (1.0 - disc) / 2.0
+    dm2_deta = dM_deta * (1.0 - disc) / 2.0 - M * ddisc_deta / 2.0
+    g_mc = gm1 * dm1_dmc + gm2 * dm2_dmc
+    g_eta = gm1 * dm1_deta + gm2 * dm2_deta
+    return g_mc, g_eta
+
+
+masses_from_chirp_mass_eta.defvjp(_mc_eta_fwd, _mc_eta_bwd)

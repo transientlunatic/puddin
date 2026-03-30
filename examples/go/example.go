@@ -32,6 +32,16 @@ func main() {
 	fmt.Printf("Sym. mass ratio : %.4f\n", float64(C.puddin_symmetric_mass_ratio(m1, m2)))
 	fmt.Printf("Chirp mass      : %.4f Msun\n", float64(C.puddin_chirp_mass(m1, m2))/msun)
 
+	// Inverse transforms
+	mc := C.puddin_chirp_mass(m1, m2)
+	q := C.puddin_mass_ratio(m1, m2)
+	eta := C.puddin_symmetric_mass_ratio(m1, m2)
+	fmt.Println("\n=== Inverse transforms ===")
+	fmt.Printf("m1 from (Mc, q)   : %.4f Msun\n", float64(C.puddin_m1_from_mc_q(mc, q))/msun)
+	fmt.Printf("m2 from (Mc, q)   : %.4f Msun\n", float64(C.puddin_m2_from_mc_q(mc, q))/msun)
+	fmt.Printf("m1 from (Mc, eta) : %.4f Msun\n", float64(C.puddin_m1_from_mc_eta(mc, eta))/msun)
+	fmt.Printf("m2 from (Mc, eta) : %.4f Msun\n", float64(C.puddin_m2_from_mc_eta(mc, eta))/msun)
+
 	a1 := C.double(0.3)
 	a2 := C.double(0.2)
 	tilt1 := C.double(0.5236) // 30 deg

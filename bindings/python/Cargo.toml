@@ -1,15 +1,18 @@
 [package]
 name = "puddin-python"
-version.workspace = true
-edition.workspace = true
-authors.workspace = true
-license.workspace = true
+version = "0.1.0"
+edition = "2021"
+authors = []
+license = "MIT OR Apache-2.0"
 
 [lib]
 name = "puddin"
 crate-type = ["cdylib"]
 
 [dependencies]
-puddin = { workspace = true }
-pyo3 = { workspace = true }
-numpy = { workspace = true }
+puddin = { path = "../../crates/puddin" }
+pyo3 = { version = "0.23", features = ["extension-module"] }
+numpy = "0.23"
+uom = { version = "0.36", features = ["f64", "si"] }
+
+[workspace]

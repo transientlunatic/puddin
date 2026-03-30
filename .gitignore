@@ -1,4 +1,7 @@
 /target
+bindings/python/target/
+bindings/python/Cargo.lock
+bindings/python/.venv/
 /docs/_build
 __pycache__/
 *.pyc

@@ -26,6 +26,17 @@ int main(void) {
     printf("Sym. mass ratio    : %.4f\n",       puddin_symmetric_mass_ratio(m1, m2));
     printf("Chirp mass         : %.4f Msun\n",  puddin_chirp_mass(m1, m2) / PUDDIN_MSUN);
 
+    /* Inverse: recover component masses from chirp mass + mass ratio */
+    double mc = puddin_chirp_mass(m1, m2);
+    double q  = puddin_mass_ratio(m1, m2);
+    printf("m1 from (Mc, q)    : %.4f Msun\n", puddin_m1_from_mc_q(mc, q)  / PUDDIN_MSUN);
+    printf("m2 from (Mc, q)    : %.4f Msun\n", puddin_m2_from_mc_q(mc, q)  / PUDDIN_MSUN);
+
+    /* Inverse: recover component masses from chirp mass + sym. mass ratio */
+    double eta = puddin_symmetric_mass_ratio(m1, m2);
+    printf("m1 from (Mc, eta)  : %.4f Msun\n", puddin_m1_from_mc_eta(mc, eta) / PUDDIN_MSUN);
+    printf("m2 from (Mc, eta)  : %.4f Msun\n", puddin_m2_from_mc_eta(mc, eta) / PUDDIN_MSUN);
+
     /* Mild spin, 30 degrees off axis */
     double a1 = 0.3, a2 = 0.2;
     double tilt1 = 0.5236, tilt2 = 1.0472;   /* 30 deg, 60 deg in radians */

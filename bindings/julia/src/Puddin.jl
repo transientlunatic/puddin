@@ -23,6 +23,7 @@ module Puddin
 
 export MSUN,
        total_mass, mass_ratio, symmetric_mass_ratio, chirp_mass,
+       masses_from_chirp_mass_q, masses_from_chirp_mass_eta,
        chi_eff, chi_p
 
 # ── shared library location ───────────────────────────────────────────────────
@@ -34,7 +35,7 @@ export MSUN,
 # For a registered Julia package the library should instead be supplied by a
 # companion JLL package created with BinaryBuilder.jl.
 
-const _REPO_ROOT = joinpath(@__DIR__, "..", "..", "..", "..")
+const _REPO_ROOT = joinpath(@__DIR__, "..", "..", "..")
 const _LIB = joinpath(_REPO_ROOT, "target", "release", "libpuddin_julia")
 
 # ── constants ─────────────────────────────────────────────────────────────────
@@ -78,6 +79,34 @@ Chirp mass ``\\mathcal{M} = (m_1 m_2)^{3/5} / M^{1/5}`` in kilograms.
 """
 function chirp_mass(m1_kg::Float64, m2_kg::Float64)::Float64
     ccall((:puddin_chirp_mass, _LIB), Float64, (Float64, Float64), m1_kg, m2_kg)
+end
+
+"""
+    masses_from_chirp_mass_q(mc_kg, q) -> Tuple{Float64, Float64}
+
+Component masses ``(m_1, m_2)`` in kilograms from chirp mass ``\\mathcal{M}``
+(kg) and mass ratio ``q = m_2/m_1 \\in (0, 1]``.
+
+Returns `(m1_kg, m2_kg)` with `m1 \u2265 m2`.
+"""
+function masses_from_chirp_mass_q(mc_kg::Float64, q::Float64)::Tuple{Float64,Float64}
+    m1 = ccall((:puddin_m1_from_mc_q, _LIB), Float64, (Float64, Float64), mc_kg, q)
+    m2 = ccall((:puddin_m2_from_mc_q, _LIB), Float64, (Float64, Float64), mc_kg, q)
+    (m1, m2)
+end
+
+"""
+    masses_from_chirp_mass_eta(mc_kg, eta) -> Tuple{Float64, Float64}
+
+Component masses ``(m_1, m_2)`` in kilograms from chirp mass ``\\mathcal{M}``
+(kg) and symmetric mass ratio ``\\eta \\in (0, 0.25]``.
+
+Returns `(m1_kg, m2_kg)` with `m1 \u2265 m2`.
+"""
+function masses_from_chirp_mass_eta(mc_kg::Float64, eta::Float64)::Tuple{Float64,Float64}
+    m1 = ccall((:puddin_m1_from_mc_eta, _LIB), Float64, (Float64, Float64), mc_kg, eta)
+    m2 = ccall((:puddin_m2_from_mc_eta, _LIB), Float64, (Float64, Float64), mc_kg, eta)
+    (m1, m2)
 end
 
 """
