@@ -11,3 +11,9 @@ __pycache__/
 .pytest_cache/
 dist/
 *.egg-info/
+
+# Fortran module files (build artifacts)
+*.mod
+
+# Go module cache
+root/
