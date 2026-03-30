@@ -5,6 +5,15 @@ thin binding layers. All interfaces accept and return values in **SI units**
 (kilograms for mass, radians for angles). Unit conversion helpers are provided
 for the Python interface.
 
+Functions are organised by physics domain. The current domain is:
+
+- **`binary`** — compact binary system parameters (masses, spins)
+
+Each language exposes this as a submodule or namespace so callers can write
+`puddin.binary.chirp_mass(...)`, `Puddin.Binary.chirp_mass(...)`,
+`puddin::binary::chirp_mass(...)`, etc.  All top-level names are also
+re-exported for backward compatibility.
+
 ---
 
 ## Command line
@@ -82,14 +91,19 @@ pip install "puddin[jax]"    # JAX / JIT support
 ```python
 import numpy as np
 import puddin
+import puddin.binary   # domain-organised submodule
 
 MSUN = 1.988_416e30  # kg
 
 m1 = np.full(1000, 30.0 * MSUN)
 m2 = np.full(1000, 30.0 * MSUN)
 
+# Recommended: use the binary submodule
+mc  = puddin.binary.chirp_mass(m1, m2)
+eta = puddin.binary.symmetric_mass_ratio(m1, m2)
+
+# Top-level shortcuts still work (backward compatible)
 mc  = puddin.chirp_mass(m1, m2)
-eta = puddin.symmetric_mass_ratio(m1, m2)
 ```
 
 ### astropy quantities
@@ -151,13 +165,23 @@ ships TypeScript declaration files. It targets modern ES module bundlers
 
 ### Vectorised API (`Float64Array`)
 
-All core functions accept and return `Float64Array` for batch processing:
+All core functions accept and return `Float64Array` for batch processing.
+Import from the `binary` submodule (recommended) or from the top-level module:
 
 ```ts
-import { chirp_mass, symmetric_mass_ratio, MSUN } from 'puddin-wasm/puddin';
+// Domain-organised import (recommended)
+import * as binary from 'puddin-wasm/binary';
 
-const m1 = new Float64Array([30 * MSUN, 10 * MSUN]);
-const m2 = new Float64Array([30 * MSUN,  5 * MSUN]);
+const m1 = new Float64Array([30 * binary.MSUN, 10 * binary.MSUN]);
+const m2 = new Float64Array([30 * binary.MSUN,  5 * binary.MSUN]);
+
+const mc  = binary.chirp_mass(m1, m2);
+const eta = binary.symmetric_mass_ratio(m1, m2);
+```
+
+```ts
+// Top-level import (backward compatible)
+import { chirp_mass, symmetric_mass_ratio, MSUN } from 'puddin-wasm/puddin';
 
 const mc  = chirp_mass(m1, m2);
 const eta = symmetric_mass_ratio(m1, m2);
@@ -228,19 +252,22 @@ using Puddin
 
 const MSUN = Puddin.MSUN   # 1.988_416e30 kg
 
-# Scalar
-mc = chirp_mass(30.0 * MSUN, 30.0 * MSUN)   # ≈ 26.1 M☉ in kg
+# Recommended: use the Binary submodule
+mc = Puddin.Binary.chirp_mass(30.0 * MSUN, 30.0 * MSUN)   # ≈ 26.1 M☉ in kg
+
+# Top-level shortcuts also work (backward compatible)
+mc = chirp_mass(30.0 * MSUN, 30.0 * MSUN)
 
 # Vectorised via Julia broadcasting — no extra work needed
 m1 = rand(1000) .* 50.0 .* MSUN
 m2 = rand(1000) .* 50.0 .* MSUN
 
-mc_arr  = chirp_mass.(m1, m2)
-eta_arr = symmetric_mass_ratio.(m1, m2)
+mc_arr  = Puddin.Binary.chirp_mass.(m1, m2)
+eta_arr = Puddin.Binary.symmetric_mass_ratio.(m1, m2)
 
-xe_arr  = chi_eff.(m1, m2,
-                   fill(0.5, 1000), fill(0.3, 1000),
-                   fill(0.2, 1000), fill(1.1, 1000))
+xe_arr  = Puddin.Binary.chi_eff.(m1, m2,
+                                 fill(0.5, 1000), fill(0.3, 1000),
+                                 fill(0.2, 1000), fill(1.1, 1000))
 ```
 
 ### Available functions
@@ -324,8 +351,8 @@ See `examples/c/example.c` in the repository for a complete runnable example wit
 
 ## C++
 
-`puddin.h` includes an `extern "C"` guard, so the header is directly usable
-from C++ without modification.
+Include `puddin/binary.hpp` to use the `puddin::binary::` namespace (recommended),
+or fall back to the flat C API via `puddin.h`.
 
 ```bash
 g++ example.cpp \
@@ -336,13 +363,13 @@ g++ example.cpp \
 ```
 
 ```cpp
-#include "puddin.h"
+#include "puddin/binary.hpp"   // provides puddin::binary:: namespace
 #include <iostream>
 
 int main() {
-    constexpr double MSUN = PUDDIN_MSUN;
-    double m1 = 30.0 * MSUN, m2 = 30.0 * MSUN;
-    std::cout << "Chirp mass: " << puddin_chirp_mass(m1, m2) / MSUN << " Msun\n";
+    namespace binary = puddin::binary;
+    double m1 = 30.0 * binary::MSUN, m2 = 30.0 * binary::MSUN;
+    std::cout << "Chirp mass: " << binary::chirp_mass(m1, m2) / binary::MSUN << " Msun\n";
 }
 ```
 
@@ -352,30 +379,22 @@ See `examples/cpp/example.cpp` in the repository for the full example.
 
 ## Fortran
 
-Fortran 2003+ `iso_c_binding` maps directly onto the C ABI.  No shim layer is
-needed — declare the interfaces with `bind(C)` and call them like normal
-Fortran procedures.
-
-```fortran
-use iso_c_binding, only: c_double
-
-interface
-    function puddin_chirp_mass(m1, m2) bind(C, name="puddin_chirp_mass")
-        import c_double
-        real(c_double), value :: m1, m2
-        real(c_double)        :: puddin_chirp_mass
-    end function
-end interface
-
-real(c_double), parameter :: MSUN = 1.988416e30_c_double
-print *, puddin_chirp_mass(30*MSUN, 30*MSUN) / MSUN  ! ~26.1
-```
+The `puddin_binary` Fortran module (in `bindings/julia/include/puddin_binary.f90`)
+groups all binary parameter interfaces under a single module, mirroring the
+domain-organised structure of the other language interfaces.
 
 ```bash
-gfortran example.f90 \
+gfortran bindings/julia/include/puddin_binary.f90 example.f90 \
     -L target/release -lpuddin_julia \
     -Wl,-rpath,$(pwd)/target/release \
     -o example
+```
+
+```fortran
+use puddin_binary
+
+real(c_double), parameter :: MSUN = puddin_binary_MSUN
+print *, chirp_mass(30*MSUN, 30*MSUN) / MSUN   ! ~26.1
 ```
 
 See `examples/fortran/example.f90` in the repository for the full example.
@@ -384,9 +403,9 @@ See `examples/fortran/example.f90` in the repository for the full example.
 
 ## Go
 
-Go's `cgo` interface handles the C ABI transparently.  Set the `#cgo`
-directives for include and library paths, then import the header and call
-functions as if they were Go functions prefixed with `C.`.
+Go's `cgo` interface handles the C ABI transparently.  The example below
+wraps the C calls in a `binary` struct that mirrors the domain-organised
+structure used in the other language interfaces.
 
 ```go
 // #cgo CFLAGS:  -I../../bindings/julia/include
@@ -395,9 +414,20 @@ functions as if they were Go functions prefixed with `C.`.
 import "C"
 import "fmt"
 
+var binary = struct {
+    MSUN      float64
+    ChirpMass func(float64, float64) float64
+    // ... other fields
+}{
+    MSUN: float64(C.PUDDIN_MSUN),
+    ChirpMass: func(m1, m2 float64) float64 {
+        return float64(C.puddin_chirp_mass(C.double(m1), C.double(m2)))
+    },
+}
+
 func main() {
-    m := C.double(30.0 * C.PUDDIN_MSUN)
-    fmt.Printf("Chirp mass: %.4f Msun\n", float64(C.puddin_chirp_mass(m, m)) / float64(C.PUDDIN_MSUN))
+    m := 30.0 * binary.MSUN
+    fmt.Printf("Chirp mass: %.4f Msun\n", binary.ChirpMass(m, m)/binary.MSUN)
 }
 ```
 
@@ -406,6 +436,7 @@ cd examples/go && go run example.go
 ```
 
 See `examples/go/example.go` in the repository for the full example.
+A reusable `binary` package is also available at `bindings/go/binary/`.
 
 ---
 
@@ -429,16 +460,19 @@ R CMD INSTALL bindings/r
 ```r
 library(Puddin)
 
-# Scalar
-chirp_mass(30 * MSUN, 30 * MSUN) / MSUN   # ~26.1
+# Domain-organised access via the binary environment (recommended)
+Puddin::binary$chirp_mass(30 * MSUN, 30 * MSUN) / MSUN   # ~26.1
+
+# Top-level functions still work (backward compatible)
+chirp_mass(30 * MSUN, 30 * MSUN) / MSUN
 
 # Vectorised — works automatically
 m1 <- c(30, 20, 10) * MSUN
 m2 <- c(30, 20,  5) * MSUN
-chirp_mass(m1, m2) / MSUN
+Puddin::binary$chirp_mass(m1, m2) / MSUN
 
 # Spin parameters
-chi_eff(30*MSUN, 30*MSUN, 0.5, 0.5, 0, 0)   # 0.5
+Puddin::binary$chi_eff(30*MSUN, 30*MSUN, 0.5, 0.5, 0, 0)   # 0.5
 ```
 
 > **Note on CRAN distribution:** producing a CRAN package with a compiled
@@ -450,14 +484,20 @@ chi_eff(30*MSUN, 30*MSUN, 0.5, 0.5, 0, 0)   # 0.5
 
 ## MATLAB
 
-Use MATLAB's `loadlibrary` / `calllib` to load the shared library directly.
-No wrapper code is needed — the C header is loaded at runtime.
+Use MATLAB's `loadlibrary` / `calllib` to load the shared library directly,
+then wrap functions in a struct for domain-organised access.
 
 ```matlab
 loadlibrary('libpuddin_julia', 'bindings/julia/include/puddin.h', 'alias', 'puddin');
 
 MSUN = 1.988416e30;
-mc   = calllib('puddin', 'puddin_chirp_mass', 30*MSUN, 30*MSUN) / MSUN;
+
+% Domain-organised binary struct (recommended)
+binary.MSUN      = MSUN;
+binary.chirp_mass = @(m1,m2) calllib('puddin','puddin_chirp_mass',m1,m2);
+% ... (see examples/matlab/example.m for all fields)
+
+mc = binary.chirp_mass(30*MSUN, 30*MSUN) / MSUN;
 fprintf('Chirp mass: %.4f Msun\n', mc);
 
 unloadlibrary('puddin');
@@ -466,8 +506,7 @@ unloadlibrary('puddin');
 For batch processing, `arrayfun` provides a vectorised wrapper:
 
 ```matlab
-masses_sun = 10:10:50;
-mc = arrayfun(@(m) calllib('puddin', 'puddin_chirp_mass', m*MSUN, m*MSUN)/MSUN, masses_sun);
+mc = arrayfun(@(m) binary.chirp_mass(m*MSUN, m*MSUN)/MSUN, 10:10:50);
 ```
 
 See `examples/matlab/example.m` in the repository for the full example.

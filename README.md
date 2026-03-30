@@ -47,13 +47,18 @@ JAX integration uses `jax.pure_callback` so Rust functions are callable inside J
 ```python
 import numpy as np
 import puddin
+import puddin.binary   # domain-organised submodule
 
 MSUN = 1.988_416e30  # kg
 
 m1 = np.array([30.0]) * MSUN
 m2 = np.array([30.0]) * MSUN
 
-print(puddin.chirp_mass(m1, m2) / MSUN)   # ~26.1 M☉
+# Recommended: access via the binary submodule
+print(puddin.binary.chirp_mass(m1, m2) / MSUN)   # ~26.1 M☉
+
+# Top-level shortcut (backward compatible)
+print(puddin.chirp_mass(m1, m2) / MSUN)
 ```
 
 ### JavaScript / TypeScript
@@ -63,15 +68,14 @@ npm install puddin-wasm
 ```
 
 ```ts
+// Domain-organised import (recommended)
+import * as binary from 'puddin-wasm/binary';
+
+const mc = binary.chirp_mass_scalar(30 * binary.MSUN, 30 * binary.MSUN);   // kg
+
+// Top-level import also works (backward compatible)
 import { MSUN, chirp_mass_scalar, chirp_mass } from 'puddin-wasm/puddin';
-
-// Scalar convenience function
-const mc = chirp_mass_scalar(30 * MSUN, 30 * MSUN);   // kg
-
-// Vectorised (Float64Array in, Float64Array out)
-const m1 = new Float64Array([30 * MSUN, 10 * MSUN]);
-const m2 = new Float64Array([30 * MSUN,  5 * MSUN]);
-const mc_arr = chirp_mass(m1, m2);
+const mc_arr = chirp_mass(new Float64Array([30 * MSUN]), new Float64Array([30 * MSUN]));
 ```
 
 ### Julia
@@ -87,8 +91,12 @@ Pkg.develop(path="bindings/julia")
 
 using Puddin
 
-mc = chirp_mass(30.0 * MSUN, 30.0 * MSUN)  # scalar
-mc = chirp_mass.(m1_array, m2_array)         # vectorised via broadcasting
+# Recommended: access via the Binary submodule
+mc = Puddin.Binary.chirp_mass(30.0 * MSUN, 30.0 * MSUN)   # scalar
+mc = Puddin.Binary.chirp_mass.(m1_array, m2_array)          # vectorised via broadcasting
+
+# Top-level shortcut (backward compatible)
+mc = chirp_mass(30.0 * MSUN, 30.0 * MSUN)
 ```
 
 ### Rust
