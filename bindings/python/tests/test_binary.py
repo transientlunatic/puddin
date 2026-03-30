@@ -3,7 +3,8 @@
 Run with: pytest bindings/python/tests/
 
 Exercises:
-- plain numpy inputs (SI)
+- plain numpy inputs (SI) via puddin.binary submodule
+- plain numpy inputs (SI) via top-level puddin namespace (backward compat)
 - astropy.units.Quantity inputs
 - pint.Quantity inputs (if pint is installed)
 - JAX inputs (if jax is installed)
@@ -18,6 +19,7 @@ import pytest
 import numpy as np
 
 import puddin
+import puddin.binary
 
 MSUN_KG = 1.989e30  # approximate solar mass in kg
 
@@ -27,6 +29,67 @@ MSUN_KG = 1.989e30  # approximate solar mass in kg
 def sol(m):
     """Return mass m (solar masses) as a plain SI float (kg)."""
     return np.atleast_1d(np.float64(m * MSUN_KG))
+
+
+# ── puddin.binary submodule tests ─────────────────────────────────────────────
+
+class TestBinarySubmodule:
+    """Verify that the puddin.binary submodule exposes the same functions."""
+
+    def test_submodule_accessible(self):
+        assert hasattr(puddin, "binary")
+
+    def test_total_mass(self):
+        result = puddin.binary.total_mass(sol(30), sol(20))
+        assert math.isclose(result[0] / MSUN_KG, 50.0, rel_tol=1e-8)
+
+    def test_mass_ratio(self):
+        result = puddin.binary.mass_ratio(sol(30), sol(15))
+        assert math.isclose(result[0], 0.5, rel_tol=1e-8)
+
+    def test_symmetric_mass_ratio(self):
+        result = puddin.binary.symmetric_mass_ratio(sol(30), sol(30))
+        assert math.isclose(result[0], 0.25, rel_tol=1e-8)
+
+    def test_chirp_mass(self):
+        mc = puddin.binary.chirp_mass(sol(30), sol(30))[0] / MSUN_KG
+        expected = 60.0 * 0.25 ** (3.0 / 5.0)
+        assert math.isclose(mc, expected, rel_tol=1e-8)
+
+    def test_masses_from_chirp_mass_q_roundtrip(self):
+        mc = puddin.binary.chirp_mass(sol(30), sol(20))
+        q = puddin.binary.mass_ratio(sol(30), sol(20))
+        (m1, m2) = puddin.binary.masses_from_chirp_mass_q(mc, q)
+        assert math.isclose(m1[0] / MSUN_KG, 30.0, rel_tol=1e-8)
+        assert math.isclose(m2[0] / MSUN_KG, 20.0, rel_tol=1e-8)
+
+    def test_masses_from_chirp_mass_eta_roundtrip(self):
+        mc = puddin.binary.chirp_mass(sol(30), sol(20))
+        eta = puddin.binary.symmetric_mass_ratio(sol(30), sol(20))
+        (m1, m2) = puddin.binary.masses_from_chirp_mass_eta(mc, eta)
+        assert math.isclose(m1[0] / MSUN_KG, 30.0, rel_tol=1e-8)
+        assert math.isclose(m2[0] / MSUN_KG, 20.0, rel_tol=1e-8)
+
+    def test_chi_eff(self):
+        x = puddin.binary.chi_eff(
+            sol(30), sol(30), np.array([0.5]), np.array([0.5]),
+            np.array([0.0]), np.array([0.0])
+        )[0]
+        assert math.isclose(x, 0.5, rel_tol=1e-8)
+
+    def test_chi_p(self):
+        x = puddin.binary.chi_p(
+            sol(30), sol(30), np.array([1.0]), np.array([0.0]),
+            np.array([math.pi / 2]), np.array([0.0])
+        )[0]
+        assert math.isclose(x, 1.0, rel_tol=1e-8)
+
+    def test_results_match_toplevel(self):
+        """puddin.binary.* and puddin.* must return identical results."""
+        m1, m2 = sol(35), sol(25)
+        assert np.allclose(puddin.binary.chirp_mass(m1, m2), puddin.chirp_mass(m1, m2))
+        assert np.allclose(puddin.binary.total_mass(m1, m2), puddin.total_mass(m1, m2))
+        assert np.allclose(puddin.binary.mass_ratio(m1, m2), puddin.mass_ratio(m1, m2))
 
 
 # ── plain numpy tests ─────────────────────────────────────────────────────────
