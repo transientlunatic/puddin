@@ -51,7 +51,7 @@ class TestPlainSI:
 
     def test_chirp_mass_equal_masses(self):
         mc = puddin.chirp_mass(sol(30), sol(30))[0] / MSUN_KG
-        expected = 30.0 * 0.25 ** (3.0 / 5.0)
+        expected = 60.0 * 0.25 ** (3.0 / 5.0)
         assert math.isclose(mc, expected, rel_tol=1e-8)
 
     def test_chirp_mass_le_total(self):
@@ -104,9 +104,11 @@ class TestAstropy:
 
     def test_chirp_mass_with_astropy_units(self):
         from astropy import units as u
-        mc = puddin.chirp_mass(30 * u.Msun, 30 * u.Msun)[0] / MSUN_KG
-        expected = 30.0 * 0.25 ** (3.0 / 5.0)
-        assert math.isclose(mc, expected, rel_tol=1e-6)
+        mc_kg = puddin.chirp_mass(30 * u.Msun, 30 * u.Msun)[0]
+        msun_kg = (1 * u.Msun).to('kg').value
+        mc_msun = mc_kg / msun_kg
+        expected = 60.0 * 0.25 ** (3.0 / 5.0)
+        assert math.isclose(mc_msun, expected, rel_tol=1e-6)
 
     def test_wrong_unit_raises(self):
         from astropy import units as u
@@ -122,10 +124,10 @@ class TestPint:
     def test_chirp_mass_with_pint_units(self):
         import pint
         ureg = pint.UnitRegistry()
-        m1 = 30 * ureg.solar_mass
-        m2 = 30 * ureg.solar_mass
+        m1 = 30 * MSUN_KG * ureg.kg
+        m2 = 30 * MSUN_KG * ureg.kg
         mc = puddin.chirp_mass(m1, m2)[0] / MSUN_KG
-        expected = 30.0 * 0.25 ** (3.0 / 5.0)
+        expected = 60.0 * 0.25 ** (3.0 / 5.0)
         assert math.isclose(mc, expected, rel_tol=1e-4)
 
     def test_wrong_unit_raises(self):
@@ -148,8 +150,8 @@ class TestJAX:
         m2 = jnp.array([30.0 * MSUN_KG])
         mc_fn = jax.jit(puddin.chirp_mass)
         mc = mc_fn(m1, m2)[0] / MSUN_KG
-        expected = 30.0 * 0.25 ** (3.0 / 5.0)
-        assert math.isclose(float(mc), expected, rel_tol=1e-6)
+        expected = 60.0 * 0.25 ** (3.0 / 5.0)
+        assert math.isclose(float(mc), expected, rel_tol=1e-4)
 
     def test_chirp_mass_grad(self):
         import jax

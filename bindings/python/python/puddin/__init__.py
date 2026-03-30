@@ -45,7 +45,7 @@ try:
         return isinstance(x, jax.Array)
 
     _JAX_AVAILABLE = True
-except ModuleNotFoundError:
+except (ModuleNotFoundError, ImportError):
     _JAX_AVAILABLE = False
 
     def _is_jax(x) -> bool:  # type: ignore[misc]
