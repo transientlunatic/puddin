@@ -72,9 +72,12 @@ npm install puddin-wasm
 import * as binary from 'puddin-wasm/binary';
 
 const mc = binary.chirp_mass_scalar(30 * binary.MSUN, 30 * binary.MSUN);   // kg
+```
 
+```ts
 // Top-level import also works (backward compatible)
 import { MSUN, chirp_mass_scalar, chirp_mass } from 'puddin-wasm/puddin';
+
 const mc_arr = chirp_mass(new Float64Array([30 * MSUN]), new Float64Array([30 * MSUN]));
 ```
 

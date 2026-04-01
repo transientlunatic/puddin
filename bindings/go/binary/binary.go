@@ -4,9 +4,9 @@
 // Functions are grouped under this package to mirror the domain-organised
 // structure of puddin.binary in Python and Puddin.Binary in Julia.
 //
-// Usage:
+// Usage (replace example.com/your-module with your actual module path):
 //
-//	import "puddin/binary"
+//	import "example.com/your-module/binary"
 //
 //	mc := binary.ChirpMass(30*binary.MSUN, 30*binary.MSUN)
 //

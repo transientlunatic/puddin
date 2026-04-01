@@ -1,7 +1,8 @@
 // examples/go/example.go
 //
-// Demonstrates calling the Puddin binary parameter functions from Go using
-// the puddin/binary package (domain-organised API).
+// Demonstrates calling the Puddin binary parameter functions from Go via
+// direct cgo bindings, using a local `binary` helper struct that mirrors
+// the domain-organised APIs used in other languages.
 //
 // Build (from repo root):
 //
