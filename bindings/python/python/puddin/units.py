@@ -48,8 +48,12 @@ def _to_si(value, expected_physical_type: str) -> np.ndarray:
     if hasattr(value, "to"):
         # astropy: .to(unit).value  |  pint: .to(unit).magnitude
         converted = value.to(si_unit) if si_unit else value
-        raw = getattr(converted, "value", None) or getattr(converted, "magnitude", None)
-        if raw is None:
+        # Use explicit sentinel to avoid `or` mishandling zero-valued arrays.
+        _MISSING = object()
+        raw = getattr(converted, "value", _MISSING)
+        if raw is _MISSING:
+            raw = getattr(converted, "magnitude", _MISSING)
+        if raw is _MISSING:
             raise TypeError(
                 f"Cannot extract numeric value from {type(value).__qualname__}. "
                 "Expected an astropy.units.Quantity or pint.Quantity."

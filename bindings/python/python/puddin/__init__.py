@@ -177,6 +177,138 @@ def chi_p(m1, m2, a1, a2, tilt1, tilt2):
     )
 
 
+# ── spin parameter conversions ────────────────────────────────────────────────
+
+# Gravitational constant in SI units (CODATA 2014, consistent with LALSuite).
+# Reference: https://lscsoft.docs.ligo.org/lalsuite/lal/group___l_a_l_constants__h.html
+_G_SI: float = 6.67430e-11  # m^3 kg^-1 s^-2
+
+
+def spin_components(
+    a1, a2, tilt1, tilt2, phi12
+) -> tuple[
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+]:
+    r"""Decompose spin tilts and azimuths into Cartesian components in the L-frame.
+
+    Converts from the bilby/LALInference spin parameterisation
+    (dimensionless magnitude + tilt angle + relative azimuth) to the
+    Cartesian spin components used internally by LALSimulation.
+
+    The **L-frame** has its z-axis aligned with the Newtonian orbital angular
+    momentum :math:`\hat{L}`.  By convention, spin 1 is placed in the x-z
+    plane (its azimuthal angle is zero), so :math:`S_{1y} = 0` identically.
+    Spin 2 is rotated by :math:`\phi_{12}` around the z-axis relative to
+    spin 1:
+
+    .. math::
+
+        \mathbf{S}_1 &= a_1 \begin{pmatrix} \sin\theta_1 \\ 0 \\ \cos\theta_1 \end{pmatrix}
+
+        \mathbf{S}_2 &= a_2 \begin{pmatrix}
+            \sin\theta_2 \cos\phi_{12} \\
+            \sin\theta_2 \sin\phi_{12} \\
+            \cos\theta_2
+        \end{pmatrix}
+
+    .. note::
+        This function gives the spin components *in the L-frame at a fixed
+        instant*.  For precessing systems, the full frame transformation
+        (which also determines the inclination :math:`\iota`) requires
+        knowledge of the orbital angular momentum magnitude
+        :math:`|L|(f_\mathrm{ref})` and is provided by
+        :func:`puddin.lalsim.spins_to_lalsim`.
+
+    Parameters
+    ----------
+    a1, a2 : array-like
+        Dimensionless spin magnitudes :math:`\chi_1, \chi_2 \in [0, 1]`.
+        Accepts plain floats/arrays or unit-carrying Quantities (dimensionless).
+    tilt1, tilt2 : array-like
+        Spin tilt angles :math:`\theta_1, \theta_2` measured from the
+        orbital angular momentum axis.  Values in :math:`[0, \pi]`.
+        Accepts plain floats/arrays in radians, or ``astropy``/``pint``
+        angle Quantities.
+    phi12 : array-like
+        Azimuthal angle of spin 2 relative to spin 1 in the orbital plane.
+        Values in :math:`[0, 2\pi)`.  Accepts plain floats/arrays in radians
+        or angle Quantities.
+
+    Returns
+    -------
+    S1x, S1y, S1z, S2x, S2y, S2z : numpy.ndarray
+        Cartesian spin components in the L-frame, each of shape matching
+        the broadcast shape of the inputs.  Components are dimensionless
+        (:math:`|\mathbf{S}_i| = a_i`).
+    """
+    a1   = to_dimensionless(a1)
+    a2   = to_dimensionless(a2)
+    t1   = to_rad(tilt1)
+    t2   = to_rad(tilt2)
+    phi  = to_rad(phi12)
+
+    S1x = a1 * np.sin(t1)
+    S1y = np.zeros_like(S1x)
+    S1z = a1 * np.cos(t1)
+
+    S2x = a2 * np.sin(t2) * np.cos(phi)
+    S2y = a2 * np.sin(t2) * np.sin(phi)
+    S2z = a2 * np.cos(t2)
+
+    return S1x, S1y, S1z, S2x, S2y, S2z
+
+
+def orbital_angular_momentum(m1, m2, f_ref) -> np.ndarray:
+    r"""Newtonian orbital angular momentum magnitude at a reference frequency.
+
+    Computes
+
+    .. math::
+
+        |L_\mathrm{N}| = \mu \frac{(G M)^{2/3}}{(\pi f_\mathrm{ref})^{1/3}}
+
+    where :math:`\mu = m_1 m_2 / M` is the reduced mass and
+    :math:`M = m_1 + m_2` is the total mass.  This is the leading-order
+    (Newtonian) expression for the orbital angular momentum at gravitational-
+    wave frequency :math:`f_\mathrm{ref}`.
+
+    Higher-order post-Newtonian corrections are not included; for production
+    injection generation use :func:`puddin.lalsim.spins_to_lalsim`, which
+    delegates to LALSimulation's full PN implementation.
+
+    Parameters
+    ----------
+    m1, m2 : array-like
+        Component masses in SI (kg), or unit-carrying mass Quantities.
+    f_ref : array-like
+        Gravitational-wave reference frequency in Hz.  Plain floats/arrays
+        are assumed to be in Hz.
+
+    Returns
+    -------
+    numpy.ndarray
+        :math:`|L_\mathrm{N}|` in SI units (kg m² s⁻¹).
+
+    Notes
+    -----
+    The gravitational constant used is :math:`G = 6.67430 \times 10^{-11}`
+    m³ kg⁻¹ s⁻², consistent with the LALSuite convention
+    (CODATA 2014, :cite:t:`Mohr2016`).
+    """
+    m1_kg  = to_kg(m1)
+    m2_kg  = to_kg(m2)
+    f_hz   = np.atleast_1d(np.asarray(f_ref, dtype=np.float64))
+
+    M  = m1_kg + m2_kg
+    mu = m1_kg * m2_kg / M
+    return mu * (_G_SI * M) ** (2.0 / 3.0) / (np.pi * f_hz) ** (1.0 / 3.0)
+
+
 __all__ = [
     "total_mass",
     "mass_ratio",
@@ -186,4 +318,6 @@ __all__ = [
     "masses_from_chirp_mass_eta",
     "chi_eff",
     "chi_p",
+    "spin_components",
+    "orbital_angular_momentum",
 ]
