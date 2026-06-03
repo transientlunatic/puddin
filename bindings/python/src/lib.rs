@@ -187,6 +187,80 @@ fn chi_p<'py>(
     Ok(result.into_pyarray_bound(py))
 }
 
+/// Cartesian spin components in the L-frame.
+///
+/// Returns a 6-tuple ``(S1x, S1y, S1z, S2x, S2y, S2z)`` of float64 arrays,
+/// each the same length as the inputs.  All inputs and outputs are
+/// dimensionless (spin magnitudes) or plain radians (angles).
+#[pyfunction]
+#[allow(clippy::too_many_arguments)]
+fn spin_components<'py>(
+    py: Python<'py>,
+    a1: PyReadonlyArray1<'py, f64>,
+    a2: PyReadonlyArray1<'py, f64>,
+    tilt1: PyReadonlyArray1<'py, f64>,
+    tilt2: PyReadonlyArray1<'py, f64>,
+    phi12: PyReadonlyArray1<'py, f64>,
+) -> PyResult<(
+    Bound<'py, PyArray1<f64>>,
+    Bound<'py, PyArray1<f64>>,
+    Bound<'py, PyArray1<f64>>,
+    Bound<'py, PyArray1<f64>>,
+    Bound<'py, PyArray1<f64>>,
+    Bound<'py, PyArray1<f64>>,
+)> {
+    let n = a1.len()?;
+    let a1 = a1.as_array();
+    let a2 = a2.as_array();
+    let t1 = tilt1.as_array();
+    let t2 = tilt2.as_array();
+    let phi = phi12.as_array();
+    let mut s1x = Vec::with_capacity(n);
+    let mut s1y = Vec::with_capacity(n);
+    let mut s1z = Vec::with_capacity(n);
+    let mut s2x = Vec::with_capacity(n);
+    let mut s2y = Vec::with_capacity(n);
+    let mut s2z = Vec::with_capacity(n);
+    for i in 0..n {
+        let (x1, y1, z1, x2, y2, z2) =
+            binary::spin_components(a1[i], a2[i], t1[i], t2[i], phi[i]);
+        s1x.push(x1);
+        s1y.push(y1);
+        s1z.push(z1);
+        s2x.push(x2);
+        s2y.push(y2);
+        s2z.push(z2);
+    }
+    Ok((
+        s1x.into_pyarray_bound(py),
+        s1y.into_pyarray_bound(py),
+        s1z.into_pyarray_bound(py),
+        s2x.into_pyarray_bound(py),
+        s2y.into_pyarray_bound(py),
+        s2z.into_pyarray_bound(py),
+    ))
+}
+
+/// Newtonian orbital angular momentum magnitude (kg m² s⁻¹).
+#[pyfunction]
+fn orbital_angular_momentum<'py>(
+    py: Python<'py>,
+    m1: PyReadonlyArray1<'py, f64>,
+    m2: PyReadonlyArray1<'py, f64>,
+    f_ref: PyReadonlyArray1<'py, f64>,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let masses1 = array_to_masses(&m1);
+    let masses2 = array_to_masses(&m2);
+    let f_arr = f_ref.as_array();
+    let result: Vec<f64> = masses1
+        .into_iter()
+        .zip(masses2)
+        .zip(f_arr.iter())
+        .map(|((m1, m2), &f)| binary::orbital_angular_momentum(m1, m2, f))
+        .collect();
+    Ok(result.into_pyarray_bound(py))
+}
+
 // ── module registration ───────────────────────────────────────────────────────
 
 #[pymodule]
@@ -199,5 +273,7 @@ fn _puddin(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(masses_from_chirp_mass_eta, m)?)?;
     m.add_function(wrap_pyfunction!(chi_eff, m)?)?;
     m.add_function(wrap_pyfunction!(chi_p, m)?)?;
+    m.add_function(wrap_pyfunction!(spin_components, m)?)?;
+    m.add_function(wrap_pyfunction!(orbital_angular_momentum, m)?)?;
     Ok(())
 }

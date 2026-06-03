@@ -286,6 +286,112 @@ pub fn chi_p(m1: Mass, m2: Mass, a1: f64, a2: f64, tilt1: f64, tilt2: f64) -> f6
     term1.max(term2)
 }
 
+// ── Spin components ──────────────────────────────────────────────────────────
+
+/// Decompose spin tilts and azimuths into Cartesian components in the L-frame.
+///
+/// Converts from the bilby / LALInference spin parameterisation
+/// (dimensionless magnitude + tilt angle + relative azimuth) to the
+/// Cartesian spin components used by LALSimulation.
+///
+/// The **L-frame** has its z-axis aligned with the Newtonian orbital angular
+/// momentum **L̂**.  By convention spin 1 is placed in the x-z plane
+/// (φ₁ = 0), so S₁ᵧ = 0 identically.  Spin 2 is rotated by φ₁₂ around the
+/// z-axis relative to spin 1:
+///
+/// ```text
+/// S₁ = a₁ (sin θ₁,  0,              cos θ₁)
+/// S₂ = a₂ (sin θ₂ cos φ₁₂,  sin θ₂ sin φ₁₂,  cos θ₂)
+/// ```
+///
+/// # Arguments
+///
+/// * `a1`, `a2`    — dimensionless spin magnitudes χ₁, χ₂ ∈ [0, 1].
+/// * `tilt1`, `tilt2` — spin tilt angles θ₁, θ₂ ∈ [0, π] (radians).
+/// * `phi12`       — azimuthal angle of spin 2 relative to spin 1 ∈ [0, 2π) (radians).
+///
+/// # Returns
+///
+/// `(S1x, S1y, S1z, S2x, S2y, S2z)` — dimensionless Cartesian components.
+///
+/// # Examples
+///
+/// ```
+/// use puddin::binary::spin_components;
+/// use std::f64::consts::FRAC_PI_2;
+///
+/// // Aligned spins: both along z-axis
+/// let (s1x, s1y, s1z, s2x, s2y, s2z) = spin_components(0.5, 0.3, 0.0, 0.0, 0.0);
+/// assert!(s1x.abs() < 1e-14 && s1y.abs() < 1e-14);
+/// assert!((s1z - 0.5).abs() < 1e-14);
+/// assert!((s2z - 0.3).abs() < 1e-14);
+///
+/// // In-plane spin 1: tilt = π/2 → S1x = a1
+/// let (s1x, s1y, s1z, _, _, _) = spin_components(0.8, 0.0, FRAC_PI_2, 0.0, 0.0);
+/// assert!((s1x - 0.8).abs() < 1e-14);
+/// assert!(s1z.abs() < 1e-14);
+/// ```
+pub fn spin_components(
+    a1: f64,
+    a2: f64,
+    tilt1: f64,
+    tilt2: f64,
+    phi12: f64,
+) -> (f64, f64, f64, f64, f64, f64) {
+    let s1x = a1 * tilt1.sin();
+    let s1y = 0.0_f64;
+    let s1z = a1 * tilt1.cos();
+    let s2x = a2 * tilt2.sin() * phi12.cos();
+    let s2y = a2 * tilt2.sin() * phi12.sin();
+    let s2z = a2 * tilt2.cos();
+    (s1x, s1y, s1z, s2x, s2y, s2z)
+}
+
+// ── Orbital angular momentum ─────────────────────────────────────────────────
+
+/// Gravitational constant in SI units (CODATA 2014, consistent with LALSuite).
+const G_SI: f64 = 6.674_30e-11; // m³ kg⁻¹ s⁻²
+
+/// Newtonian orbital angular momentum magnitude at a reference frequency.
+///
+/// Computes the leading-order (Newtonian) orbital angular momentum
+///
+/// ```text
+/// |L_N| = μ (G M)^{2/3} / (π f_ref)^{1/3}
+/// ```
+///
+/// where μ = m₁ m₂ / M is the reduced mass and M = m₁ + m₂ is the total mass.
+///
+/// # Arguments
+///
+/// * `m1`, `m2` — component masses (SI: kg).
+/// * `f_ref`    — gravitational-wave reference frequency (Hz).
+///
+/// # Returns
+///
+/// `|L_N|` in SI units (kg m² s⁻¹).
+///
+/// # Examples
+///
+/// ```
+/// use uom::si::f64::Mass;
+/// use uom::si::mass::kilogram;
+/// use puddin::binary::orbital_angular_momentum;
+///
+/// const MSUN: f64 = 1.988_416e30;
+/// let m1 = Mass::new::<kilogram>(30.0 * MSUN);
+/// let m2 = Mass::new::<kilogram>(20.0 * MSUN);
+/// let l = orbital_angular_momentum(m1, m2, 20.0);
+/// assert!(l > 0.0);
+/// ```
+pub fn orbital_angular_momentum(m1: Mass, m2: Mass, f_ref: f64) -> f64 {
+    let m1_kg = m1.get::<kilogram>();
+    let m2_kg = m2.get::<kilogram>();
+    let m_kg = m1_kg + m2_kg;
+    let mu_kg = m1_kg * m2_kg / m_kg;
+    mu_kg * (G_SI * m_kg).powf(2.0 / 3.0) / (std::f64::consts::PI * f_ref).powf(1.0 / 3.0)
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Tests
 // ─────────────────────────────────────────────────────────────────────────────
@@ -481,6 +587,90 @@ mod tests {
         assert!(m1.get::<kilogram>() >= m2.get::<kilogram>());
     }
 
+    // ── spin_components ───────────────────────────────────────────────────────
+
+    #[test]
+    fn spin_components_aligned() {
+        let (s1x, s1y, s1z, s2x, s2y, s2z) = spin_components(0.5, 0.3, 0.0, 0.0, 0.0);
+        assert!(s1x.abs() < 1e-14, "S1x={s1x}");
+        assert!(s1y.abs() < 1e-14, "S1y={s1y}");
+        assert!((s1z - 0.5).abs() < 1e-14, "S1z={s1z}");
+        assert!(s2x.abs() < 1e-14, "S2x={s2x}");
+        assert!(s2y.abs() < 1e-14, "S2y={s2y}");
+        assert!((s2z - 0.3).abs() < 1e-14, "S2z={s2z}");
+    }
+
+    #[test]
+    fn spin_components_antialigned_s1() {
+        let (_, _, s1z, _, _, _) = spin_components(0.6, 0.0, std::f64::consts::PI, 0.0, 0.0);
+        assert!((s1z - (-0.6)).abs() < 1e-14, "S1z={s1z}");
+    }
+
+    #[test]
+    fn spin_components_in_plane_s1() {
+        let (s1x, s1y, s1z, _, _, _) =
+            spin_components(0.8, 0.0, std::f64::consts::FRAC_PI_2, 0.0, 0.0);
+        assert!((s1x - 0.8).abs() < 1e-14, "S1x={s1x}");
+        assert!(s1y.abs() < 1e-14, "S1y={s1y}");
+        assert!(s1z.abs() < 1e-14, "S1z={s1z}");
+    }
+
+    #[test]
+    fn spin_components_s1y_always_zero() {
+        for (a1, t1, phi) in [(0.5, 0.3, 1.2), (0.9, 2.1, 0.0), (0.0, 1.0, 3.0)] {
+            let (_, s1y, _, _, _, _) = spin_components(a1, 0.0, t1, 0.0, phi);
+            assert!(s1y.abs() < 1e-14, "S1y={s1y} for a1={a1} t1={t1} phi={phi}");
+        }
+    }
+
+    #[test]
+    fn spin_components_s2_phi12_quarter_turn() {
+        // tilt2 = π/2, phi12 = π/2 → S2 along y
+        let (_, _, _, s2x, s2y, s2z) =
+            spin_components(0.0, 0.5, 0.0, std::f64::consts::FRAC_PI_2, std::f64::consts::FRAC_PI_2);
+        assert!(s2x.abs() < 1e-14, "S2x={s2x}");
+        assert!((s2y - 0.5).abs() < 1e-14, "S2y={s2y}");
+        assert!(s2z.abs() < 1e-14, "S2z={s2z}");
+    }
+
+    // ── orbital_angular_momentum ─────────────────────────────────────────────
+
+    #[test]
+    fn oam_positive() {
+        let l = orbital_angular_momentum(solar(30.0), solar(20.0), 20.0);
+        assert!(l > 0.0);
+    }
+
+    #[test]
+    fn oam_newtonian_formula() {
+        // |L_N| = μ (G M)^{2/3} / (π f)^{1/3}
+        let m1 = 30.0 * MSUN_KG;
+        let m2 = 20.0 * MSUN_KG;
+        let f = 20.0_f64;
+        let m = m1 + m2;
+        let mu = m1 * m2 / m;
+        let expected = mu * (G_SI * m).powf(2.0 / 3.0) / (std::f64::consts::PI * f).powf(1.0 / 3.0);
+        let got = orbital_angular_momentum(solar(30.0), solar(20.0), f);
+        assert!((got / expected - 1.0).abs() < 1e-10, "got={got} expected={expected}");
+    }
+
+    #[test]
+    fn oam_scales_as_f_minus_one_third() {
+        // L(f) / L(8f) = 2
+        let m1 = solar(30.0);
+        let m2 = solar(30.0);
+        let l_lo = orbital_angular_momentum(m1, m2, 20.0);
+        let l_hi = orbital_angular_momentum(m1, m2, 160.0);
+        assert!((l_lo / l_hi - 2.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn oam_symmetric_in_masses() {
+        let l_ab = orbital_angular_momentum(solar(30.0), solar(20.0), 20.0);
+        let l_ba = orbital_angular_momentum(solar(20.0), solar(30.0), 20.0);
+        assert!((l_ab / l_ba - 1.0).abs() < 1e-12);
+    }
+
     // ── Property tests ────────────────────────────────────────────────────────
 
     proptest! {
@@ -555,6 +745,62 @@ mod tests {
                 "m1 roundtrip failed: got {} expected {}", r1.get::<kilogram>() / MSUN_KG, m1);
             prop_assert!((r2.get::<kilogram>() / (m2 * MSUN_KG) - 1.0).abs() < 1e-9,
                 "m2 roundtrip failed: got {} expected {}", r2.get::<kilogram>() / MSUN_KG, m2);
+        }
+
+        #[test]
+        fn prop_spin_components_s1_magnitude(
+            a1 in 0.0_f64..=1.0,
+            tilt1 in 0.0_f64..=std::f64::consts::PI,
+            phi12 in 0.0_f64..=(2.0 * std::f64::consts::PI),
+        ) {
+            let (s1x, s1y, s1z, _, _, _) = spin_components(a1, 0.0, tilt1, 0.0, phi12);
+            let mag2 = s1x*s1x + s1y*s1y + s1z*s1z;
+            prop_assert!((mag2 - a1*a1).abs() < 1e-12,
+                "|S1|²={mag2} ≠ a1²={} for a1={a1} tilt1={tilt1}", a1*a1);
+        }
+
+        #[test]
+        fn prop_spin_components_s2_magnitude(
+            a2 in 0.0_f64..=1.0,
+            tilt2 in 0.0_f64..=std::f64::consts::PI,
+            phi12 in 0.0_f64..=(2.0 * std::f64::consts::PI),
+        ) {
+            let (_, _, _, s2x, s2y, s2z) = spin_components(0.0, a2, 0.0, tilt2, phi12);
+            let mag2 = s2x*s2x + s2y*s2y + s2z*s2z;
+            prop_assert!((mag2 - a2*a2).abs() < 1e-12,
+                "|S2|²={mag2} ≠ a2²={} for a2={a2} tilt2={tilt2} phi12={phi12}", a2*a2);
+        }
+
+        #[test]
+        fn prop_spin_components_s1y_zero(
+            a1 in 0.0_f64..=1.0,
+            tilt1 in 0.0_f64..=std::f64::consts::PI,
+            phi12 in 0.0_f64..=(2.0 * std::f64::consts::PI),
+        ) {
+            let (_, s1y, _, _, _, _) = spin_components(a1, 0.0, tilt1, 0.0, phi12);
+            prop_assert!(s1y.abs() < 1e-14, "S1y={s1y} ≠ 0 for a1={a1} tilt1={tilt1}");
+        }
+
+        #[test]
+        fn prop_oam_positive(
+            m1 in 1.0_f64..200.0,
+            m2 in 1.0_f64..200.0,
+            f_ref in 1.0_f64..200.0,
+        ) {
+            let l = orbital_angular_momentum(solar(m1), solar(m2), f_ref);
+            prop_assert!(l > 0.0, "L={l} not positive for m1={m1} m2={m2} f={f_ref}");
+        }
+
+        #[test]
+        fn prop_oam_symmetric(
+            m1 in 1.0_f64..200.0,
+            m2 in 1.0_f64..200.0,
+            f_ref in 1.0_f64..200.0,
+        ) {
+            let l_ab = orbital_angular_momentum(solar(m1), solar(m2), f_ref);
+            let l_ba = orbital_angular_momentum(solar(m2), solar(m1), f_ref);
+            prop_assert!((l_ab / l_ba - 1.0).abs() < 1e-10,
+                "L not symmetric: L(m1,m2)={l_ab} L(m2,m1)={l_ba}");
         }
 
         #[test]

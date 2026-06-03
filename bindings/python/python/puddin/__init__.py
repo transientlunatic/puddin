@@ -179,10 +179,6 @@ def chi_p(m1, m2, a1, a2, tilt1, tilt2):
 
 # ── spin parameter conversions ────────────────────────────────────────────────
 
-# Gravitational constant in SI units (CODATA 2014, consistent with LALSuite).
-# Reference: https://lscsoft.docs.ligo.org/lalsuite/lal/group___l_a_l_constants__h.html
-_G_SI: float = 6.67430e-11  # m^3 kg^-1 s^-2
-
 
 def spin_components(
     a1, a2, tilt1, tilt2, phi12
@@ -246,21 +242,15 @@ def spin_components(
         the broadcast shape of the inputs.  Components are dimensionless
         (:math:`|\mathbf{S}_i| = a_i`).
     """
-    a1   = to_dimensionless(a1)
-    a2   = to_dimensionless(a2)
-    t1   = to_rad(tilt1)
-    t2   = to_rad(tilt2)
-    phi  = to_rad(phi12)
-
-    S1x = a1 * np.sin(t1)
-    S1y = np.zeros_like(S1x)
-    S1z = a1 * np.cos(t1)
-
-    S2x = a2 * np.sin(t2) * np.cos(phi)
-    S2y = a2 * np.sin(t2) * np.sin(phi)
-    S2z = a2 * np.cos(t2)
-
-    return S1x, S1y, S1z, S2x, S2y, S2z
+    if _any_jax(a1, a2, tilt1, tilt2, phi12):
+        return _jax.spin_components(a1, a2, tilt1, tilt2, phi12)
+    return _rust.spin_components(
+        to_dimensionless(a1),
+        to_dimensionless(a2),
+        to_rad(tilt1),
+        to_rad(tilt2),
+        to_rad(phi12),
+    )
 
 
 def orbital_angular_momentum(m1, m2, f_ref) -> np.ndarray:
@@ -297,16 +287,20 @@ def orbital_angular_momentum(m1, m2, f_ref) -> np.ndarray:
     Notes
     -----
     The gravitational constant used is :math:`G = 6.67430 \times 10^{-11}`
-    m³ kg⁻¹ s⁻², consistent with the LALSuite convention
-    (CODATA 2014, :cite:t:`Mohr2016`).
+    m³ kg⁻¹ s⁻², consistent with the LALSuite convention (CODATA 2014).
     """
-    m1_kg  = to_kg(m1)
-    m2_kg  = to_kg(m2)
-    f_hz   = np.atleast_1d(np.asarray(f_ref, dtype=np.float64))
-
-    M  = m1_kg + m2_kg
-    mu = m1_kg * m2_kg / M
-    return mu * (_G_SI * M) ** (2.0 / 3.0) / (np.pi * f_hz) ** (1.0 / 3.0)
+    if _any_jax(m1, m2):
+        return _jax.orbital_angular_momentum(m1, m2, f_ref)
+    m1_, m2_, f_ = np.broadcast_arrays(
+        to_kg(m1),
+        to_kg(m2),
+        np.atleast_1d(np.asarray(f_ref, dtype=np.float64)),
+    )
+    return _rust.orbital_angular_momentum(
+        np.ascontiguousarray(m1_),
+        np.ascontiguousarray(m2_),
+        np.ascontiguousarray(f_),
+    )
 
 
 __all__ = [

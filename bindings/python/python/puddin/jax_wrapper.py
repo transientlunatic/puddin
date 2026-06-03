@@ -308,3 +308,87 @@ def _mc_eta_bwd(res, g):
 
 
 masses_from_chirp_mass_eta.defvjp(_mc_eta_fwd, _mc_eta_bwd)
+
+# ── spin_components ───────────────────────────────────────────────────────────
+
+def _spin_components_result_shapes(a1, a2, tilt1, tilt2, phi12):
+    return tuple(_result_shape(a1) for _ in range(6))
+
+
+@jax.custom_vjp
+def spin_components(
+    a1: jax.Array,
+    a2: jax.Array,
+    tilt1: jax.Array,
+    tilt2: jax.Array,
+    phi12: jax.Array,
+):
+    r"""Cartesian spin components in the L-frame.
+
+    S1 = a1*(sin t1, 0, cos t1)
+    S2 = a2*(sin t2 cos phi12, sin t2 sin phi12, cos t2)
+    """
+    return pure_callback(
+        _np(_puddin.spin_components),
+        _spin_components_result_shapes(a1, a2, tilt1, tilt2, phi12),
+        a1, a2, tilt1, tilt2, phi12,
+        vmap_method="sequential",
+    )
+
+
+def _spin_components_fwd(a1, a2, tilt1, tilt2, phi12):
+    return spin_components(a1, a2, tilt1, tilt2, phi12), (a1, a2, tilt1, tilt2, phi12)
+
+
+def _spin_components_bwd(res, g):
+    a1, a2, tilt1, tilt2, phi12 = res
+    g_s1x, g_s1y, g_s1z, g_s2x, g_s2y, g_s2z = g
+    # S1 = a1*(sin t1, 0, cos t1) — S1y = 0 so g_s1y contributes nothing
+    g_a1   = g_s1x * jnp.sin(tilt1) + g_s1z * jnp.cos(tilt1)
+    g_t1   = g_s1x * a1 * jnp.cos(tilt1) - g_s1z * a1 * jnp.sin(tilt1)
+    # S2 = a2*(sin t2 cos p, sin t2 sin p, cos t2)
+    g_a2   = (g_s2x * jnp.sin(tilt2) * jnp.cos(phi12)
+              + g_s2y * jnp.sin(tilt2) * jnp.sin(phi12)
+              + g_s2z * jnp.cos(tilt2))
+    g_t2   = (g_s2x * a2 * jnp.cos(tilt2) * jnp.cos(phi12)
+              + g_s2y * a2 * jnp.cos(tilt2) * jnp.sin(phi12)
+              - g_s2z * a2 * jnp.sin(tilt2))
+    g_phi  = (-g_s2x * a2 * jnp.sin(tilt2) * jnp.sin(phi12)
+              + g_s2y * a2 * jnp.sin(tilt2) * jnp.cos(phi12))
+    return g_a1, g_a2, g_t1, g_t2, g_phi
+
+
+spin_components.defvjp(_spin_components_fwd, _spin_components_bwd)
+
+# ── orbital_angular_momentum ──────────────────────────────────────────────────
+
+@jax.custom_vjp
+def orbital_angular_momentum(m1: jax.Array, m2: jax.Array, f_ref: jax.Array):
+    r"""Newtonian orbital angular momentum |L_N| = μ (G M)^{2/3} / (π f)^{1/3} (kg m² s⁻¹)."""
+    return pure_callback(
+        _np(_puddin.orbital_angular_momentum),
+        _result_shape(m1),
+        m1, m2, f_ref,
+        vmap_method="sequential",
+    )
+
+
+def _oam_fwd(m1, m2, f_ref):
+    return orbital_angular_momentum(m1, m2, f_ref), (m1, m2, f_ref)
+
+
+def _oam_bwd(res, g):
+    m1, m2, f_ref = res
+    M = m1 + m2
+    L = orbital_angular_momentum(m1, m2, f_ref)
+    # L = m1*m2 * G^{2/3} * M^{-1/3} / (pi*f)^{1/3}
+    # dL/dm1 = L * (m2 + 2*m1/3) / (m1 * M)
+    # dL/dm2 = L * (m1 + 2*m2/3) / (m2 * M)
+    # dL/df  = -L / (3 * f)
+    g_m1 = g * L * (m2 + 2.0 * m1 / 3.0) / (m1 * M)
+    g_m2 = g * L * (m1 + 2.0 * m2 / 3.0) / (m2 * M)
+    g_f  = g * (-L / (3.0 * f_ref))
+    return g_m1, g_m2, g_f
+
+
+orbital_angular_momentum.defvjp(_oam_fwd, _oam_bwd)
