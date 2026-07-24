@@ -1,6 +1,7 @@
 % examples/matlab/example.m
 %
-% Demonstrates calling the Puddin C API from MATLAB via calllib / loadlibrary.
+% Demonstrates calling the Puddin C API from MATLAB, using a domain-organised
+% binary struct that mirrors puddin.binary in Python and Puddin.Binary in Julia.
 %
 % Prerequisites:
 %   1. Build the shared library from the repo root:
@@ -26,37 +27,55 @@ if ~libisloaded('puddin')
     loadlibrary(lib_file, header_file, 'alias', 'puddin');
 end
 
-% ── constants ─────────────────────────────────────────────────────────────────
+% ── domain-organised binary struct ───────────────────────────────────────────
+%
+% Wraps all compact binary parameter functions in a struct so they can be
+% accessed as binary.chirp_mass(m1, m2), mirroring puddin.binary in Python
+% and Puddin.Binary in Julia.
+
 MSUN = 1.988416e30;
 
+binary.MSUN = MSUN;
+binary.total_mass           = @(m1,m2) calllib('puddin','puddin_total_mass',m1,m2);
+binary.mass_ratio           = @(m1,m2) calllib('puddin','puddin_mass_ratio',m1,m2);
+binary.symmetric_mass_ratio = @(m1,m2) calllib('puddin','puddin_symmetric_mass_ratio',m1,m2);
+binary.chirp_mass           = @(m1,m2) calllib('puddin','puddin_chirp_mass',m1,m2);
+binary.m1_from_chirp_mass_q = @(mc,q)  calllib('puddin','puddin_m1_from_mc_q',mc,q);
+binary.m2_from_chirp_mass_q = @(mc,q)  calllib('puddin','puddin_m2_from_mc_q',mc,q);
+binary.m1_from_chirp_mass_eta = @(mc,eta) calllib('puddin','puddin_m1_from_mc_eta',mc,eta);
+binary.m2_from_chirp_mass_eta = @(mc,eta) calllib('puddin','puddin_m2_from_mc_eta',mc,eta);
+binary.chi_eff = @(m1,m2,a1,a2,t1,t2) calllib('puddin','puddin_chi_eff',m1,m2,a1,a2,t1,t2);
+binary.chi_p   = @(m1,m2,a1,a2,t1,t2) calllib('puddin','puddin_chi_p',  m1,m2,a1,a2,t1,t2);
+
+% ── use the binary struct ─────────────────────────────────────────────────────
 m1 = 30.0 * MSUN;
 m2 = 30.0 * MSUN;
 
 fprintf('=== GW150914-like binary (30+30 Msun) ===\n');
-fprintf('Total mass      : %.4f Msun\n', calllib('puddin', 'puddin_total_mass', m1, m2) / MSUN);
-fprintf('Mass ratio      : %.4f\n',       calllib('puddin', 'puddin_mass_ratio', m1, m2));
-fprintf('Sym. mass ratio : %.4f\n',       calllib('puddin', 'puddin_symmetric_mass_ratio', m1, m2));
-fprintf('Chirp mass      : %.4f Msun\n',  calllib('puddin', 'puddin_chirp_mass', m1, m2) / MSUN);
+fprintf('Total mass      : %.4f Msun\n', binary.total_mass(m1, m2) / MSUN);
+fprintf('Mass ratio      : %.4f\n',       binary.mass_ratio(m1, m2));
+fprintf('Sym. mass ratio : %.4f\n',       binary.symmetric_mass_ratio(m1, m2));
+fprintf('Chirp mass      : %.4f Msun\n',  binary.chirp_mass(m1, m2) / MSUN);
 
 % Inverse transforms
-mc  = calllib('puddin', 'puddin_chirp_mass',            m1, m2);
-q   = calllib('puddin', 'puddin_mass_ratio',             m1, m2);
-eta = calllib('puddin', 'puddin_symmetric_mass_ratio',   m1, m2);
+mc  = binary.chirp_mass(m1, m2);
+q   = binary.mass_ratio(m1, m2);
+eta = binary.symmetric_mass_ratio(m1, m2);
 fprintf('\n=== Inverse transforms ===\n');
-fprintf('m1 from (Mc, q)   : %.4f Msun\n', calllib('puddin', 'puddin_m1_from_mc_q',   mc, q)   / MSUN);
-fprintf('m2 from (Mc, q)   : %.4f Msun\n', calllib('puddin', 'puddin_m2_from_mc_q',   mc, q)   / MSUN);
-fprintf('m1 from (Mc, eta) : %.4f Msun\n', calllib('puddin', 'puddin_m1_from_mc_eta', mc, eta) / MSUN);
-fprintf('m2 from (Mc, eta) : %.4f Msun\n', calllib('puddin', 'puddin_m2_from_mc_eta', mc, eta) / MSUN);
+fprintf('m1 from (Mc, q)   : %.4f Msun\n', binary.m1_from_chirp_mass_q(mc, q)   / MSUN);
+fprintf('m2 from (Mc, q)   : %.4f Msun\n', binary.m2_from_chirp_mass_q(mc, q)   / MSUN);
+fprintf('m1 from (Mc, eta) : %.4f Msun\n', binary.m1_from_chirp_mass_eta(mc, eta) / MSUN);
+fprintf('m2 from (Mc, eta) : %.4f Msun\n', binary.m2_from_chirp_mass_eta(mc, eta) / MSUN);
 
 a1    = 0.3;   a2    = 0.2;
 tilt1 = 0.5236; tilt2 = 1.0472;   % 30 deg, 60 deg in radians
 
-fprintf('chi_eff         : %.4f\n', calllib('puddin', 'puddin_chi_eff', m1, m2, a1, a2, tilt1, tilt2));
-fprintf('chi_p           : %.4f\n', calllib('puddin', 'puddin_chi_p',   m1, m2, a1, a2, tilt1, tilt2));
+fprintf('chi_eff         : %.4f\n', binary.chi_eff(m1, m2, a1, a2, tilt1, tilt2));
+fprintf('chi_p           : %.4f\n', binary.chi_p(  m1, m2, a1, a2, tilt1, tilt2));
 
 % ── vectorised example using arrayfun ─────────────────────────────────────────
 masses_sun = 10:10:50;  % [10 20 30 40 50] Msun equal-mass binaries
-mc_sun = arrayfun(@(m) calllib('puddin', 'puddin_chirp_mass', m*MSUN, m*MSUN) / MSUN, masses_sun);
+mc_sun = arrayfun(@(m) binary.chirp_mass(m*MSUN, m*MSUN) / MSUN, masses_sun);
 
 fprintf('\n=== Chirp masses for equal-mass binaries ===\n');
 fprintf('  m1=m2 (Msun)  Mc (Msun)\n');

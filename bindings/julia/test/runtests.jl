@@ -89,4 +89,66 @@ const MSUN = Puddin.MSUN
         @test all(mc .> 0.0)
     end
 
+    # ── Puddin.Binary submodule ───────────────────────────────────────────────
+
+    @testset "Binary submodule accessible" begin
+        @test isdefined(Puddin, :Binary)
+        @test Puddin.Binary isa Module
+    end
+
+    @testset "Binary.chirp_mass matches top-level" begin
+        m = 30.0 * MSUN
+        @test Puddin.Binary.chirp_mass(m, m) ≈ chirp_mass(m, m)  rtol=1e-10
+    end
+
+    @testset "Binary.total_mass" begin
+        @test Puddin.Binary.total_mass(30.0 * MSUN, 30.0 * MSUN) ≈ 60.0 * MSUN  rtol=1e-10
+    end
+
+    @testset "Binary.mass_ratio" begin
+        @test Puddin.Binary.mass_ratio(30.0 * MSUN, 15.0 * MSUN) ≈ 0.5  rtol=1e-10
+    end
+
+    @testset "Binary.symmetric_mass_ratio" begin
+        @test Puddin.Binary.symmetric_mass_ratio(30.0 * MSUN, 30.0 * MSUN) ≈ 0.25  rtol=1e-10
+    end
+
+    @testset "Binary.masses_from_chirp_mass_q roundtrip" begin
+        m1 = 30.0 * MSUN
+        m2 = 20.0 * MSUN
+        mc = Puddin.Binary.chirp_mass(m1, m2)
+        q  = Puddin.Binary.mass_ratio(m1, m2)
+        (r1, r2) = Puddin.Binary.masses_from_chirp_mass_q(mc, q)
+        @test r1 ≈ m1  rtol=1e-10
+        @test r2 ≈ m2  rtol=1e-10
+    end
+
+    @testset "Binary.masses_from_chirp_mass_eta roundtrip" begin
+        m1 = 30.0 * MSUN
+        m2 = 20.0 * MSUN
+        mc  = Puddin.Binary.chirp_mass(m1, m2)
+        eta = Puddin.Binary.symmetric_mass_ratio(m1, m2)
+        (r1, r2) = Puddin.Binary.masses_from_chirp_mass_eta(mc, eta)
+        @test r1 ≈ m1  rtol=1e-10
+        @test r2 ≈ m2  rtol=1e-10
+    end
+
+    @testset "Binary.chi_eff" begin
+        m = 30.0 * MSUN
+        @test Puddin.Binary.chi_eff(m, m, 0.5, 0.5, 0.0, 0.0) ≈ 0.5  rtol=1e-10
+    end
+
+    @testset "Binary.chi_p" begin
+        m = 30.0 * MSUN
+        @test Puddin.Binary.chi_p(m, m, 0.0, 0.0, 0.0, 0.0) ≈ 0.0  atol=1e-15
+    end
+
+    @testset "Binary broadcasting" begin
+        m1 = [30.0, 10.0] .* MSUN
+        m2 = [30.0,  5.0] .* MSUN
+        mc = Puddin.Binary.chirp_mass.(m1, m2)
+        @test length(mc) == 2
+        @test all(mc .> 0.0)
+    end
+
 end

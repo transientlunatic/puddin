@@ -7,6 +7,14 @@ parameter computations.
 All functions accept and return SI values (`Float64`, kilograms for masses,
 radians for angles, dimensionless otherwise).
 
+Functions are organised by physics domain into submodules:
+
+- [`Puddin.Binary`](@ref) — compact binary parameter conversions (masses, spins)
+
+All functions are also exported from the top-level `Puddin` module for
+convenience, so existing code using `using Puddin; chirp_mass(...)` continues
+to work without modification.
+
 Use Julia broadcasting to apply scalar functions over arrays:
 
 ```julia
@@ -15,16 +23,12 @@ using Puddin
 m1 = fill(30.0 * MSUN, 1000)
 m2 = fill(30.0 * MSUN, 1000)
 
-mc  = chirp_mass.(m1, m2)
+mc  = Binary.chirp_mass.(m1, m2)   # via submodule
+mc  = chirp_mass.(m1, m2)          # top-level shortcut (backward compat)
 eta = symmetric_mass_ratio.(m1, m2)
 ```
 """
 module Puddin
-
-export MSUN,
-       total_mass, mass_ratio, symmetric_mass_ratio, chirp_mass,
-       masses_from_chirp_mass_q, masses_from_chirp_mass_eta,
-       chi_eff, chi_p
 
 # ── shared library location ───────────────────────────────────────────────────
 #
@@ -38,12 +42,34 @@ export MSUN,
 const _REPO_ROOT = joinpath(@__DIR__, "..", "..", "..")
 const _LIB = joinpath(_REPO_ROOT, "target", "release", "libpuddin_julia")
 
-# ── constants ─────────────────────────────────────────────────────────────────
+# ── Binary submodule ──────────────────────────────────────────────────────────
+
+"""
+    Binary
+
+Compact binary system parameter functions for gravitational-wave astronomy.
+
+All functions accept scalar `Float64` values in SI units (kg for mass, radians
+for angles).  Vectorisation is handled by Julia broadcasting:
+
+```julia
+using Puddin
+
+mc = Binary.chirp_mass.(m1_array, m2_array)
+```
+"""
+module Binary
+
+export MSUN,
+       total_mass, mass_ratio, symmetric_mass_ratio, chirp_mass,
+       masses_from_chirp_mass_q, masses_from_chirp_mass_eta,
+       chi_eff, chi_p
+
+const _REPO_ROOT = joinpath(@__DIR__, "..", "..", "..")
+const _LIB = joinpath(_REPO_ROOT, "target", "release", "libpuddin_julia")
 
 "Solar mass in kilograms."
 const MSUN::Float64 = 1.988_416e30
-
-# ── binary parameters ─────────────────────────────────────────────────────────
 
 """
     total_mass(m1_kg, m2_kg) -> Float64
@@ -87,7 +113,7 @@ end
 Component masses ``(m_1, m_2)`` in kilograms from chirp mass ``\\mathcal{M}``
 (kg) and mass ratio ``q = m_2/m_1 \\in (0, 1]``.
 
-Returns `(m1_kg, m2_kg)` with `m1 \u2265 m2`.
+Returns `(m1_kg, m2_kg)` with `m1 ≥ m2`.
 """
 function masses_from_chirp_mass_q(mc_kg::Float64, q::Float64)::Tuple{Float64,Float64}
     m1 = ccall((:puddin_m1_from_mc_q, _LIB), Float64, (Float64, Float64), mc_kg, q)
@@ -101,7 +127,7 @@ end
 Component masses ``(m_1, m_2)`` in kilograms from chirp mass ``\\mathcal{M}``
 (kg) and symmetric mass ratio ``\\eta \\in (0, 0.25]``.
 
-Returns `(m1_kg, m2_kg)` with `m1 \u2265 m2`.
+Returns `(m1_kg, m2_kg)` with `m1 ≥ m2`.
 """
 function masses_from_chirp_mass_eta(mc_kg::Float64, eta::Float64)::Tuple{Float64,Float64}
     m1 = ccall((:puddin_m1_from_mc_eta, _LIB), Float64, (Float64, Float64), mc_kg, eta)
@@ -151,4 +177,25 @@ function chi_p(
     )
 end
 
-end # module
+end # module Binary
+
+# ── top-level re-exports (backward-compatible shortcuts) ──────────────────────
+
+export Binary
+
+export MSUN,
+       total_mass, mass_ratio, symmetric_mass_ratio, chirp_mass,
+       masses_from_chirp_mass_q, masses_from_chirp_mass_eta,
+       chi_eff, chi_p
+
+const MSUN = Binary.MSUN
+const total_mass = Binary.total_mass
+const mass_ratio = Binary.mass_ratio
+const symmetric_mass_ratio = Binary.symmetric_mass_ratio
+const chirp_mass = Binary.chirp_mass
+const masses_from_chirp_mass_q = Binary.masses_from_chirp_mass_q
+const masses_from_chirp_mass_eta = Binary.masses_from_chirp_mass_eta
+const chi_eff = Binary.chi_eff
+const chi_p = Binary.chi_p
+
+end # module Puddin
