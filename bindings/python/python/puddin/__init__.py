@@ -31,7 +31,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from puddin.units import to_kg, to_rad, to_dimensionless
+from puddin.units import to_kg, to_rad, to_dimensionless, to_hz
 from puddin import _puddin as _rust
 
 # ── JAX availability detection ────────────────────────────────────────────────
@@ -294,7 +294,7 @@ def orbital_angular_momentum(m1, m2, f_ref) -> np.ndarray:
     m1_, m2_, f_ = np.broadcast_arrays(
         to_kg(m1),
         to_kg(m2),
-        np.atleast_1d(np.asarray(f_ref, dtype=np.float64)),
+        to_hz(f_ref),
     )
     return _rust.orbital_angular_momentum(
         np.ascontiguousarray(m1_),

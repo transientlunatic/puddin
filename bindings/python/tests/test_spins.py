@@ -16,18 +16,13 @@ import numpy as np
 import pytest
 
 import puddin
+from conftest import MSUN_KG, sol as _sol
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
-MSUN_KG = 1.989e30          # approximate solar mass [kg]
-G_SI    = 6.67430e-11       # gravitational constant [m^3 kg^-1 s^-2]
-
-
-def _sol(m_sun: float) -> np.ndarray:
-    """Return mass in solar masses as a plain SI float array (kg)."""
-    return np.atleast_1d(np.float64(m_sun * MSUN_KG))
+G_SI = 6.67430e-11  # gravitational constant [m^3 kg^-1 s^-2]
 
 
 # ===========================================================================

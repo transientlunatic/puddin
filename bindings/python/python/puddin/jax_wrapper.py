@@ -374,13 +374,13 @@ def orbital_angular_momentum(m1: jax.Array, m2: jax.Array, f_ref: jax.Array):
 
 
 def _oam_fwd(m1, m2, f_ref):
-    return orbital_angular_momentum(m1, m2, f_ref), (m1, m2, f_ref)
+    L = orbital_angular_momentum(m1, m2, f_ref)
+    return L, (m1, m2, f_ref, L)
 
 
 def _oam_bwd(res, g):
-    m1, m2, f_ref = res
+    m1, m2, f_ref, L = res
     M = m1 + m2
-    L = orbital_angular_momentum(m1, m2, f_ref)
     # L = m1*m2 * G^{2/3} * M^{-1/3} / (pi*f)^{1/3}
     # dL/dm1 = L * (m2 + 2*m1/3) / (m1 * M)
     # dL/dm2 = L * (m1 + 2*m2/3) / (m2 * M)

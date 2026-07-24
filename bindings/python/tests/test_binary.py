@@ -18,15 +18,7 @@ import pytest
 import numpy as np
 
 import puddin
-
-MSUN_KG = 1.989e30  # approximate solar mass in kg
-
-
-# ── helpers ───────────────────────────────────────────────────────────────────
-
-def sol(m):
-    """Return mass m (solar masses) as a plain SI float (kg)."""
-    return np.atleast_1d(np.float64(m * MSUN_KG))
+from conftest import MSUN_KG, sol
 
 
 # ── plain numpy tests ─────────────────────────────────────────────────────────

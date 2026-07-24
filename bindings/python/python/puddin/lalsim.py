@@ -37,13 +37,14 @@ except ImportError as exc:  # pragma: no cover
         "Install it via 'conda install -c conda-forge lalsimulation'."
     ) from exc
 
-from puddin.units import to_dimensionless, to_kg, to_rad
+from puddin import spin_components
+from puddin.units import to_dimensionless, to_hz, to_kg, to_rad
 
 __all__ = ["spins_to_lalsim"]
 
 
 # ---------------------------------------------------------------------------
-# Internal scalar worker (vectorised below)
+# Internal scalar worker (vectorised below) — precessing events only
 # ---------------------------------------------------------------------------
 
 
@@ -60,35 +61,7 @@ def _scalar_transform(
     f_ref: float,
     phase: float,
 ) -> tuple[float, float, float, float, float, float, float]:
-    """Call SimInspiralTransformPrecessingNewInitialConditions for a single event.
-
-    Aligned-spin fast path
-    ----------------------
-    When both spins are zero or aligned/anti-aligned with the orbital angular
-    momentum (tilt ∈ {0, π}), the total and orbital angular momenta are
-    parallel and the transformation reduces to:
-
-    * ``iota = theta_jn``
-    * ``S1x = S1y = 0``, ``S1z = a1 * cos(tilt1)``
-    * ``S2x = S2y = 0``, ``S2z = a2 * cos(tilt2)``
-
-    This avoids a LALSim call for the majority of production injections,
-    which use quasi-aligned-spin populations.
-    """
-    spin1_aligned = (a1 == 0.0) or (abs(tilt1) < 1e-15) or (abs(tilt1 - np.pi) < 1e-15)
-    spin2_aligned = (a2 == 0.0) or (abs(tilt2) < 1e-15) or (abs(tilt2 - np.pi) < 1e-15)
-
-    if spin1_aligned and spin2_aligned:
-        return (
-            theta_jn,
-            0.0,
-            0.0,
-            a1 * np.cos(tilt1),
-            0.0,
-            0.0,
-            a2 * np.cos(tilt2),
-        )
-
+    """Call SimInspiralTransformPrecessingNewInitialConditions for a single event."""
     result = _lalsim.SimInspiralTransformPrecessingNewInitialConditions(
         theta_jn, phi_jl, tilt1, tilt2, phi12, a1, a2, m1, m2, f_ref, phase
     )
@@ -102,6 +75,11 @@ _vec_transform = np.vectorize(
     _scalar_transform,
     otypes=[np.float64] * 7,
 )
+
+
+def _is_aligned(a: np.ndarray, tilt: np.ndarray) -> np.ndarray:
+    """True where a spin is zero, or aligned/anti-aligned with L (tilt in {0, pi})."""
+    return (a == 0.0) | (np.abs(tilt) < 1e-15) | (np.abs(tilt - np.pi) < 1e-15)
 
 
 # ---------------------------------------------------------------------------
@@ -149,14 +127,12 @@ def spins_to_lalsim(
     Aligned-spin fast path
     ----------------------
     When both spins are aligned or anti-aligned with :math:`\mathbf{L}`, or
-    both spin magnitudes are zero, the LALSim call is skipped and the result
-    is computed analytically:
-
-    .. math::
-
-        \iota = \theta_{JN}, \quad
-        S_{1x} = S_{1y} = 0, \quad S_{1z} = a_1 \cos\theta_1, \quad
-        S_{2x} = S_{2y} = 0, \quad S_{2z} = a_2 \cos\theta_2.
+    both spin magnitudes are zero, the LALSim call is skipped for those
+    samples: :math:`\iota = \theta_{JN}` and the Cartesian components are
+    computed directly via :func:`puddin.spin_components` (which reduces to
+    :math:`S_{1x}=S_{1y}=0,\ S_{1z}=a_1\cos\theta_1` and similarly for spin 2
+    when :math:`\sin\theta_i = 0`). Only genuinely precessing samples pay for
+    a LALSim call, batched over the whole input array.
 
     Parameters
     ----------
@@ -218,19 +194,42 @@ def spins_to_lalsim(
     ...     f_ref=np.array([20.0]),
     ... )
     """
-    theta_jn = to_rad(theta_jn)
-    phi_jl   = to_rad(phi_jl)
-    tilt1    = to_rad(tilt1)
-    tilt2    = to_rad(tilt2)
-    phi12    = to_rad(phi12)
-    a1       = to_dimensionless(a1)
-    a2       = to_dimensionless(a2)
-    m1       = to_kg(m1)
-    m2       = to_kg(m2)
-    f_ref    = np.atleast_1d(np.asarray(f_ref, dtype=np.float64))
-    phase    = to_rad(phase)
-
-    iota, s1x, s1y, s1z, s2x, s2y, s2z = _vec_transform(
-        theta_jn, phi_jl, tilt1, tilt2, phi12, a1, a2, m1, m2, f_ref, phase
+    theta_jn, phi_jl, tilt1, tilt2, phi12, a1, a2, m1, m2, f_ref, phase = np.broadcast_arrays(
+        to_rad(theta_jn),
+        to_rad(phi_jl),
+        to_rad(tilt1),
+        to_rad(tilt2),
+        to_rad(phi12),
+        to_dimensionless(a1),
+        to_dimensionless(a2),
+        to_kg(m1),
+        to_kg(m2),
+        to_hz(f_ref),
+        to_rad(phase),
     )
+
+    aligned = _is_aligned(a1, tilt1) & _is_aligned(a2, tilt2)
+
+    iota = np.zeros_like(theta_jn)
+    s1x, s1y, s1z = (np.zeros_like(theta_jn) for _ in range(3))
+    s2x, s2y, s2z = (np.zeros_like(theta_jn) for _ in range(3))
+
+    if np.any(aligned):
+        iota[aligned] = theta_jn[aligned]
+        (
+            s1x[aligned], s1y[aligned], s1z[aligned],
+            s2x[aligned], s2y[aligned], s2z[aligned],
+        ) = spin_components(a1[aligned], a2[aligned], tilt1[aligned], tilt2[aligned], phi12[aligned])
+
+    precessing = ~aligned
+    if np.any(precessing):
+        (
+            iota[precessing], s1x[precessing], s1y[precessing], s1z[precessing],
+            s2x[precessing], s2y[precessing], s2z[precessing],
+        ) = _vec_transform(
+            theta_jn[precessing], phi_jl[precessing], tilt1[precessing], tilt2[precessing],
+            phi12[precessing], a1[precessing], a2[precessing], m1[precessing], m2[precessing],
+            f_ref[precessing], phase[precessing],
+        )
+
     return iota, s1x, s1y, s1z, s2x, s2y, s2z
